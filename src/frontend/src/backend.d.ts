@@ -24,6 +24,7 @@ export interface Ride {
     bikeNumber?: string;
     createdAt: bigint;
     pickup: string;
+    rideStartCode?: string;
     driverName?: string;
 }
 export interface RiderProfile {
@@ -46,6 +47,7 @@ export interface RiderDetails {
     name: string;
     aadhaarNumber: string;
     phone: string;
+    aadhaarImage: string;
     verificationStatus: string;
 }
 export interface UserProfile {
@@ -84,6 +86,8 @@ export interface backendInterface {
     registerUser(name: string, phone: string, password: string, role: string): Promise<string>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setRiderStatus(phone: string, status: string): Promise<string>;
+    startRideWithCode(rideId: bigint, driverPhone: string, code: string): Promise<string>;
     suspendRider(phone: string): Promise<string>;
+    uploadRiderAadhaarImage(phone: string, imageData: string): Promise<string>;
     verifyRider(phone: string, verificationStatus: string): Promise<string>;
 }

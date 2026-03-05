@@ -12,7 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { Ride } from "../backend.d";
 import { useActor } from "../hooks/useActor";
-import { BIKE_NUMBER, type StoredUser } from "../types";
+import type { StoredUser } from "../types";
 
 interface Props {
   user: StoredUser;
@@ -49,12 +49,34 @@ export default function RiderRequestsScreen({
     if (!actor) return;
     setAcceptingId(ride.id);
     try {
-      await actor.acceptRide(ride.id, user.phone, user.name, BIKE_NUMBER);
+      // Check rider details and verification status first
+      const riderDetails = await actor.getRiderDetails(user.phone);
+      if (!riderDetails || riderDetails.verificationStatus !== "approved") {
+        toast.error(
+          "Your account must be approved by admin before accepting rides.",
+        );
+        setAcceptingId(null);
+        return;
+      }
+
+      await actor.acceptRide(
+        ride.id,
+        user.phone,
+        user.name,
+        riderDetails.bikeNumber,
+      );
       toast.success("Ride accepted! Head to pickup.");
       onAccepted();
     } catch (err) {
       console.error(err);
-      toast.error("Could not accept this ride. Try another.");
+      // Extract actual error message from backend
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+            ? err
+            : "Could not accept this ride. Try another.";
+      toast.error(message);
     } finally {
       setAcceptingId(null);
     }
@@ -79,6 +101,7 @@ export default function RiderRequestsScreen({
         <button
           type="button"
           onClick={onBack}
+          data-ocid="ride_requests.cancel_button"
           className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center hover:border-primary transition-colors"
         >
           <ArrowLeft size={18} className="text-foreground" />
@@ -181,6 +204,9 @@ export default function RiderRequestsScreen({
 
                 {/* Accept */}
                 <Button
+                  data-ocid={
+                    `ride_requests.primary_button.${idx + 1}` as string
+                  }
                   onClick={() => handleAccept(ride)}
                   disabled={acceptingId !== null}
                   className="w-full h-12 rounded-2xl font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90 orange-glow transition-all"

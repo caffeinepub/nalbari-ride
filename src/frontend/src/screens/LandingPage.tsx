@@ -21,7 +21,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Screen, StoredUser } from "../types";
-import { BASE_FARE, FIXED_FARE, MAX_FARE, RATE_PER_KM } from "../types";
+import { DEFAULT_FARE, MAX_DISPLAY_FARE, MIN_DISPLAY_FARE } from "../types";
 
 interface LandingPageProps {
   currentUser: StoredUser | null;
@@ -144,7 +144,7 @@ export default function LandingPage({
         currentUser.name,
         bookingPickup.trim(),
         bookingDrop.trim(),
-        FIXED_FARE,
+        DEFAULT_FARE,
       );
       toast.success("Booking confirmed! Your ride is on the way.");
       onRideCreated(ride.id);
@@ -342,18 +342,18 @@ export default function LandingPage({
                 className="landing-observe landing-observe-delay-1 font-display text-5xl sm:text-6xl lg:text-7xl font-extrabold leading-[1.05] mb-6"
                 style={{ color: "oklch(0.97 0.01 90)" }}
               >
-                Ride{" "}
-                <span style={{ color: "oklch(0.72 0.2 142)" }}>Nalbari</span>
+                <span style={{ color: "oklch(0.72 0.2 142)" }}>Nalbari</span>{" "}
+                Ride
                 <br />
                 <span
                   className="text-4xl sm:text-5xl lg:text-6xl font-bold"
                   style={{ color: "oklch(0.75 0.02 265)" }}
                 >
-                  Fast, Safe &amp;
+                  Ride Smart.
                 </span>
                 <br />
                 <span className="text-4xl sm:text-5xl lg:text-6xl">
-                  Affordable Rides
+                  Ride Local.
                 </span>
               </h1>
 
@@ -444,7 +444,7 @@ export default function LandingPage({
                     color: "oklch(0.07 0.01 265)",
                   }}
                 >
-                  ₹15–₹30
+                  ₹{MIN_DISPLAY_FARE}–₹{MAX_DISPLAY_FARE}
                 </div>
                 <div
                   className="absolute -bottom-4 -left-8 px-3 py-1.5 rounded-full text-xs font-semibold"
@@ -728,21 +728,20 @@ export default function LandingPage({
                   className="text-sm font-medium"
                   style={{ color: "oklch(0.7 0.02 265)" }}
                 >
-                  Estimated fare (₹{BASE_FARE.toString()} base + ₹
-                  {RATE_PER_KM.toString()}/km)
+                  ₹10 base (3 km) · ₹5/km after
                 </span>
                 <span
                   className="text-xs"
                   style={{ color: "oklch(0.55 0.02 265)" }}
                 >
-                  5–10 km distance range
+                  e.g. 5 km = ₹20 · 8 km = ₹35
                 </span>
               </div>
               <span
                 className="font-display text-2xl font-extrabold whitespace-nowrap"
                 style={{ color: "oklch(0.72 0.2 142)" }}
               >
-                ₹{FIXED_FARE.toString()}–₹{MAX_FARE.toString()}
+                ₹{MIN_DISPLAY_FARE}–₹{MAX_DISPLAY_FARE}
               </span>
             </div>
 
@@ -963,7 +962,7 @@ export default function LandingPage({
             style={{ color: "oklch(0.97 0.01 90)" }}
           >
             Drive with{" "}
-            <span style={{ color: "oklch(0.72 0.2 142)" }}>Ride Nalbari</span>
+            <span style={{ color: "oklch(0.72 0.2 142)" }}>Nalbari Ride</span>
           </h2>
           <p
             className="landing-observe landing-observe-delay-2 text-lg sm:text-xl mb-12 max-w-xl mx-auto"
@@ -1081,7 +1080,7 @@ export default function LandingPage({
               {
                 icon: Tag,
                 title: "Affordable Price",
-                desc: "Lowest fares in Nalbari, guaranteed. Just ₹15–₹30 with no hidden charges.",
+                desc: "Lowest fares in Nalbari, guaranteed. Just ₹10–₹35 with no hidden charges.",
                 delay: "landing-observe-delay-2",
               },
               {
@@ -1307,7 +1306,7 @@ export default function LandingPage({
               color: "oklch(0.38 0.02 265)",
             }}
           >
-            © {new Date().getFullYear()} Ride Nalbari. All rights reserved. ·
+            © {new Date().getFullYear()} Nalbari Ride. All rights reserved. ·
             Built with ❤️ using{" "}
             <a
               href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "ridenalbari")}`}

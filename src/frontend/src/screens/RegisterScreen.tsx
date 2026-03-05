@@ -2,9 +2,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Bike, Loader2, User } from "lucide-react";
+import {
+  ArrowLeft,
+  Bike,
+  Camera,
+  CheckCircle,
+  ImageIcon,
+  Loader2,
+  User,
+} from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../hooks/useActor";
 
@@ -12,6 +20,155 @@ interface Props {
   role: "customer" | "rider";
   onSuccess: () => void;
   onLogin: () => void;
+}
+
+type DocType = "aadhaar" | "licence" | "bike" | "selfie";
+
+interface DocUploadState {
+  base64: string;
+}
+
+function useDocUpload() {
+  const [docs, setDocs] = useState<Record<DocType, DocUploadState>>({
+    aadhaar: { base64: "" },
+    licence: { base64: "" },
+    bike: { base64: "" },
+    selfie: { base64: "" },
+  });
+
+  const setDoc = (type: DocType, base64: string) => {
+    setDocs((prev) => ({ ...prev, [type]: { base64 } }));
+  };
+
+  return { docs, setDoc };
+}
+
+interface DocUploadFieldProps {
+  label: string;
+  required?: boolean;
+  docType: DocType;
+  value: string;
+  onChange: (base64: string) => void;
+  ocidPrefix: string;
+}
+
+function DocUploadField({
+  label,
+  required,
+  value,
+  onChange,
+  ocidPrefix,
+}: DocUploadFieldProps) {
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => onChange(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Label className="text-foreground/80 text-sm font-medium">
+        {label}{" "}
+        {required && <span style={{ color: "oklch(0.75 0.16 27)" }}>*</span>}
+      </Label>
+
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+        }}
+      />
+      <input
+        ref={galleryRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+        }}
+      />
+
+      {value ? (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="flex items-center gap-3"
+        >
+          <div
+            className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0"
+            style={{ border: "1px solid oklch(0.78 0.17 142 / 35%)" }}
+          >
+            <img
+              src={value}
+              alt={label}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 flex-1">
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold w-fit"
+              style={{
+                background: "oklch(0.78 0.17 142 / 15%)",
+                color: "oklch(0.78 0.17 142)",
+                border: "1px solid oklch(0.78 0.17 142 / 30%)",
+              }}
+            >
+              <CheckCircle size={10} />
+              Uploaded
+            </span>
+            <button
+              type="button"
+              onClick={() => galleryRef.current?.click()}
+              className="text-xs underline text-left"
+              style={{ color: "oklch(0.55 0.03 265)" }}
+            >
+              Change photo
+            </button>
+          </div>
+        </motion.div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            data-ocid={`${ocidPrefix}.upload_button`}
+            onClick={() => cameraRef.current?.click()}
+            className="flex flex-col items-center justify-center gap-1.5 h-14 rounded-xl font-semibold text-xs transition-all active:scale-95"
+            style={{
+              background: "oklch(0.78 0.17 142 / 10%)",
+              border: "1px solid oklch(0.78 0.17 142 / 30%)",
+              color: "oklch(0.78 0.17 142)",
+            }}
+          >
+            <Camera size={16} />
+            Camera
+          </button>
+          <button
+            type="button"
+            onClick={() => galleryRef.current?.click()}
+            className="flex flex-col items-center justify-center gap-1.5 h-14 rounded-xl font-semibold text-xs transition-all active:scale-95"
+            style={{
+              background: "oklch(0.78 0.17 142 / 10%)",
+              border: "1px solid oklch(0.78 0.17 142 / 30%)",
+              color: "oklch(0.78 0.17 142)",
+            }}
+          >
+            <ImageIcon size={16} />
+            Gallery
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
@@ -23,6 +180,7 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
   const [aadhaarNumber, setAadhaarNumber] = useState("");
   const [bikeNumber, setBikeNumber] = useState("");
   const [loading, setLoading] = useState(false);
+  const { docs, setDoc } = useDocUpload();
 
   const handleRegister = async () => {
     if (!name.trim() || !phone.trim() || !password.trim()) {
@@ -49,6 +207,10 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
         toast.error("Please enter your Bike Number");
         return;
       }
+      if (!docs.aadhaar.base64) {
+        toast.error("Please upload your Aadhaar card image");
+        return;
+      }
     }
     if (!actor) {
       toast.error("Connection not ready. Please wait.");
@@ -72,6 +234,17 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
         return;
       }
 
+      // CRITICAL: Register principal-phone mapping so backend checks work
+      try {
+        await actor.saveCallerUserProfile({
+          name: name.trim(),
+          phone: phone.trim(),
+          role,
+        });
+      } catch (profileErr) {
+        console.warn("Could not save caller profile:", profileErr);
+      }
+
       // Also register rider details if role is rider
       if (role === "rider") {
         try {
@@ -85,6 +258,32 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
         } catch (riderErr) {
           console.error("Rider registration error:", riderErr);
           // Continue anyway — user account created
+        }
+
+        // Upload Aadhaar image to backend
+        if (docs.aadhaar.base64) {
+          try {
+            await actor.uploadRiderAadhaarImage(
+              phone.trim(),
+              docs.aadhaar.base64,
+            );
+          } catch (imgErr) {
+            console.error("Aadhaar image upload error:", imgErr);
+          }
+        }
+
+        // Store other docs in localStorage (backend doesn't support them yet)
+        const localDocs: Record<string, string> = {};
+        if (docs.licence.base64) localDocs.licencePhoto = docs.licence.base64;
+        if (docs.bike.base64) localDocs.bikePhoto = docs.bike.base64;
+        if (docs.selfie.base64) localDocs.selfiePhoto = docs.selfie.base64;
+        if (Object.keys(localDocs).length > 0) {
+          try {
+            const key = `rider_docs_${phone.trim()}`;
+            localStorage.setItem(key, JSON.stringify(localDocs));
+          } catch {
+            // localStorage might be full — best effort
+          }
         }
       }
 
@@ -103,7 +302,7 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
   return (
     <div
       data-ocid="register.page"
-      className="screen-fill px-6 pt-12 pb-10 flex flex-col fade-in"
+      className="screen-fill px-6 pt-12 pb-10 flex flex-col fade-in overflow-y-auto"
     >
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
@@ -285,6 +484,56 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
                   className="h-13 rounded-xl bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-primary font-mono"
                 />
               </div>
+
+              {/* Document uploads section */}
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-xl mt-1"
+                style={{
+                  background: "oklch(0.72 0.19 45 / 8%)",
+                  border: "1px solid oklch(0.72 0.19 45 / 20%)",
+                }}
+              >
+                <ImageIcon size={14} style={{ color: "oklch(0.82 0.15 45)" }} />
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: "oklch(0.82 0.15 45)" }}
+                >
+                  Document Uploads (Required for activation)
+                </span>
+              </div>
+
+              <DocUploadField
+                label="Aadhaar Card (Front Side)"
+                required
+                docType="aadhaar"
+                value={docs.aadhaar.base64}
+                onChange={(b64) => setDoc("aadhaar", b64)}
+                ocidPrefix="register.aadhaar"
+              />
+
+              <DocUploadField
+                label="Driving Licence Photo"
+                docType="licence"
+                value={docs.licence.base64}
+                onChange={(b64) => setDoc("licence", b64)}
+                ocidPrefix="register.licence_photo"
+              />
+
+              <DocUploadField
+                label="Bike Photo"
+                docType="bike"
+                value={docs.bike.base64}
+                onChange={(b64) => setDoc("bike", b64)}
+                ocidPrefix="register.bike_photo"
+              />
+
+              <DocUploadField
+                label="Rider Selfie Photo"
+                docType="selfie"
+                value={docs.selfie.base64}
+                onChange={(b64) => setDoc("selfie", b64)}
+                ocidPrefix="register.selfie_photo"
+              />
             </>
           )}
         </div>

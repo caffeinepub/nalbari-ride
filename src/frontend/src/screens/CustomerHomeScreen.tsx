@@ -6,7 +6,12 @@ import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../hooks/useActor";
-import { FIXED_FARE, MAX_FARE, type StoredUser } from "../types";
+import {
+  DEFAULT_FARE,
+  MAX_DISPLAY_FARE,
+  MIN_DISPLAY_FARE,
+  type StoredUser,
+} from "../types";
 
 interface Props {
   user: StoredUser;
@@ -58,7 +63,7 @@ export default function CustomerHomeScreen({
         user.name,
         pickup.trim(),
         drop.trim(),
-        FIXED_FARE,
+        DEFAULT_FARE,
       );
       toast.success("Ride booked! Finding a rider...");
       onRideCreated(ride.id);
@@ -126,11 +131,11 @@ export default function CustomerHomeScreen({
         <div className="flex items-baseline gap-1 mt-1 relative z-10">
           <IndianRupee size={28} className="text-primary-foreground" />
           <span className="font-display text-5xl font-extrabold text-primary-foreground">
-            {FIXED_FARE.toString()}–{MAX_FARE.toString()}
+            {MIN_DISPLAY_FARE}–{MAX_DISPLAY_FARE}
           </span>
         </div>
         <p className="text-primary-foreground/70 text-xs mt-2 relative z-10">
-          Base ₹20 + ₹3/km · 5–10 km range
+          ₹10 base (3 km) · ₹5/km after · up to 8 km = ₹35
         </p>
       </motion.div>
 
@@ -200,7 +205,7 @@ export default function CustomerHomeScreen({
         <div className="flex items-center justify-between px-1 py-2 rounded-xl bg-secondary/50">
           <span className="text-muted-foreground text-sm">Estimated fare</span>
           <span className="font-bold text-brand text-base">
-            ₹{FIXED_FARE.toString()}–₹{MAX_FARE.toString()}
+            ₹{MIN_DISPLAY_FARE}–₹{MAX_DISPLAY_FARE}
           </span>
         </div>
       </motion.div>

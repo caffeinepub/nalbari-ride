@@ -88,6 +88,7 @@ export default function CustomerRideStatusScreen({
             />
           )}
           {status === "accepted" && <StatusAccepted ride={ride} />}
+          {status === "in_progress" && <StatusInProgress ride={ride} />}
           {status === "completed" && (
             <StatusCompleted ride={ride} onBookAnother={onBookAnother} />
           )}
@@ -157,6 +158,8 @@ function StatusPending({
 }
 
 function StatusAccepted({ ride }: { ride: Ride | null }) {
+  const rideStartCode = ride?.rideStartCode;
+
   return (
     <div className="w-full flex flex-col items-center gap-6 slide-up">
       <div
@@ -171,6 +174,53 @@ function StatusAccepted({ ride }: { ride: Ride | null }) {
         </h2>
         <p className="text-muted-foreground text-sm">
           Your rider is heading to your pickup
+        </p>
+      </div>
+
+      {/* Ride Start Code — prominent display */}
+      <div
+        data-ocid="ride_status.panel"
+        className="w-full rounded-3xl border-2 p-5 flex flex-col items-center gap-3"
+        style={{
+          background: "oklch(0.18 0.04 265 / 80%)",
+          borderColor: "oklch(0.72 0.19 45 / 60%)",
+        }}
+      >
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Your Ride Start Code
+        </p>
+        {rideStartCode ? (
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            className="flex items-center gap-2"
+          >
+            {([0, 1, 2, 3] as const).map((pos) => (
+              <div
+                key={`digit-pos-${pos}`}
+                className="w-14 h-16 rounded-2xl flex items-center justify-center font-mono font-extrabold text-3xl"
+                style={{
+                  background: "oklch(0.72 0.19 45 / 15%)",
+                  color: "oklch(0.85 0.19 45)",
+                  border: "2px solid oklch(0.72 0.19 45 / 40%)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {rideStartCode[pos] ?? ""}
+              </div>
+            ))}
+          </motion.div>
+        ) : (
+          <div className="flex items-center gap-2 py-2">
+            <Loader2 size={16} className="text-muted-foreground spin-loader" />
+            <span className="text-muted-foreground text-sm">
+              Code loading...
+            </span>
+          </div>
+        )}
+        <p className="text-center text-sm text-muted-foreground leading-snug px-2">
+          Tell this code to your rider when they arrive at pickup
         </p>
       </div>
 
@@ -197,6 +247,75 @@ function StatusAccepted({ ride }: { ride: Ride | null }) {
               ₹{ride.fare.toString()}
             </span>
           </div>
+          {ride.driverPhone && (
+            <a
+              data-ocid="ride_status.call_button"
+              href={`tel:${ride.driverPhone}`}
+              className="flex items-center justify-center gap-2 w-full h-13 rounded-2xl font-bold text-sm transition-all"
+              style={{
+                background: "oklch(0.78 0.17 142)",
+                color: "oklch(0.1 0.01 265)",
+              }}
+            >
+              <Phone size={18} />
+              Call Driver
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatusInProgress({ ride }: { ride: Ride | null }) {
+  return (
+    <div className="w-full flex flex-col items-center gap-6 slide-up">
+      <div
+        className="w-24 h-24 rounded-full border-4 flex items-center justify-center relative"
+        style={{
+          borderColor: "oklch(0.78 0.17 142 / 40%)",
+          background: "oklch(0.78 0.17 142 / 10%)",
+        }}
+      >
+        <div
+          className="absolute inset-0 rounded-full border-4 border-t-transparent animate-spin"
+          style={{
+            borderColor:
+              "oklch(0.78 0.17 142 / 50%) transparent transparent transparent",
+          }}
+        />
+        <Navigation size={36} style={{ color: "oklch(0.78 0.17 142)" }} />
+      </div>
+      <div className="text-center">
+        <h2 className="font-display text-2xl font-bold text-foreground mb-1">
+          Ride In Progress
+        </h2>
+        <p className="text-muted-foreground text-sm">
+          Your rider is taking you to your destination
+        </p>
+      </div>
+      {ride && (
+        <div className="w-full rounded-3xl bg-card border border-border p-5 flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-primary/15 flex items-center justify-center">
+              <Bike size={22} className="text-brand" />
+            </div>
+            <div>
+              <p className="font-bold text-foreground">
+                {ride.driverName ?? "Your Rider"}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {ride.bikeNumber ?? "—"}
+              </p>
+            </div>
+            <div className="ml-auto">
+              <span className="font-bold text-brand text-lg">
+                ₹{ride.fare.toString()}
+              </span>
+            </div>
+          </div>
+          <div className="h-px bg-border" />
+          <RideRouteInfo pickup={ride.pickup} drop={ride.drop} />
           {ride.driverPhone && (
             <a
               data-ocid="ride_status.call_button"

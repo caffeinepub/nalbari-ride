@@ -3,15 +3,17 @@ import Int "mo:core/Int";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
 import Nat "mo:core/Nat";
-import Iter "mo:core/Iter";
 import Order "mo:core/Order";
+import Iter "mo:core/Iter";
 import Principal "mo:core/Principal";
-
-
+import MixinAuthorization "authorization/MixinAuthorization";
+import AccessControl "authorization/access-control";
 
 
 
 actor {
+  let accessControlState = AccessControl.initState();
+  include MixinAuthorization(accessControlState);
 
   type User = {
     id : Nat;
@@ -21,7 +23,7 @@ actor {
     role : Text;
   };
 
-  type Ride = {
+  public type Ride = {
     id : Nat;
     customerPhone : Text;
     customerName : Text;
@@ -33,16 +35,17 @@ actor {
     driverPhone : ?Text;
     bikeNumber : ?Text;
     createdAt : Int;
+    rideStartCode : ?Text;
   };
 
-  type RiderProfile = {
+  public type RiderProfile = {
     phone : Text;
     name : Text;
     status : Text;
     totalEarnings : Nat;
   };
 
-  type RiderDetails = {
+  public type RiderDetails = {
     phone : Text;
     name : Text;
     licenceNumber : Text;
@@ -50,6 +53,7 @@ actor {
     bikeNumber : Text;
     accountStatus : Text;
     verificationStatus : Text;
+    aadhaarImage : Text;
   };
 
   public type UserProfile = {
@@ -63,17 +67,6 @@ actor {
     phone : Text;
     source : Text;
     destination : Text;
-  };
-
-  public type RideCustomerResponse = {
-    requestId : Text;
-    name : Text;
-    phone : Text;
-    source : Text;
-    destination : Text;
-    status : Text;
-    createdAt : Int;
-    updatedAt : Int;
   };
 
   module Ride {
@@ -103,33 +96,25 @@ actor {
   let riderDetails = Map.empty<Text, RiderDetails>();
   let userProfiles = Map.empty<Principal, UserProfile>();
   let principalToPhone = Map.empty<Principal, Text>();
-  let demoCustomers = Map.fromIter<Text, RideCustomerRequest>(
-    ["1", "2", "3"].values().zip(
-      [
-        {
-          name = "John Doe";
-          phone = "8586045702";
-          source = "Dumunighat";
-          destination = "Nalbarichi flyover";
-        },
-        {
-          name = "Jane Smith";
-          phone = "1234567890";
-          source = "Kanmuribari";
-          destination = "Gopalthan";
-        },
-        {
-          name = "Alice Johnson";
-          phone = "9876543210";
-          source = "J Park";
-          destination = "Khutiapara";
-        },
-      ].values(),
-    )
-  );
+
+  // Helper function to generate ride start code
+  func generateStartCode(rideId : Nat, createdAt : Int) : Text {
+    let baseSeed = rideId * 7919;
+    let trimmedTime = Int.abs(createdAt / 1_000_000_000);
+    let combinedSeed = (baseSeed + trimmedTime) % 10000;
+    let codeText = combinedSeed.toText();
+    let paddedCode = if (combinedSeed < 10) {
+      "000" # codeText;
+    } else if (combinedSeed < 100) {
+      "00" # codeText;
+    } else if (combinedSeed < 1000) {
+      "0" # codeText;
+    } else { codeText };
+    paddedCode;
+  };
 
   // ************************************
-  // Admin Auth (password-based, no AccessControl)
+  // Admin Auth (password-based check only, actual enforcement via AccessControl)
   // ************************************
 
   public query ({ caller }) func adminLogin(password : Text) : async Bool {
@@ -141,14 +126,23 @@ actor {
   // ************************************
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Unauthorized: You must be logged in");
+    };
     userProfiles.get(caller);
   };
 
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Unauthorized: You must be logged in to view profiles");
+    };
     userProfiles.get(user);
   };
 
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
+    if (caller.isAnonymous()) {
+      Runtime.trap("Unauthorized: You must be logged in to save profile");
+    };
     userProfiles.add(caller, profile);
     principalToPhone.add(caller, profile.phone);
   };
@@ -177,6 +171,14 @@ actor {
         };
         userProfiles.add(caller, profile);
         principalToPhone.add(caller, phone);
+
+        // Assign appropriate role in AccessControl system
+        if (role == "admin") {
+          AccessControl.assignRole(accessControlState, caller, caller, #admin);
+        } else {
+          AccessControl.assignRole(accessControlState, caller, caller, #user);
+        };
+
         "ok";
       };
       case (?_) { Runtime.trap("Phone number already registered") };
@@ -207,7 +209,7 @@ actor {
   };
 
   // ************************************
-  // Rider Registration and Management (no AccessControl checks)
+  // Rider Registration and Management
   // ************************************
 
   public shared ({ caller }) func registerRider(
@@ -217,7 +219,10 @@ actor {
     aadhaarNumber : Text,
     bikeNumber : Text,
   ) : async Text {
-    // Verify caller owns this phone number
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can register as riders");
+    };
+
     switch (principalToPhone.get(caller)) {
       case (null) {
         Runtime.trap("Unauthorized: You must be logged in to register as a rider");
@@ -239,6 +244,7 @@ actor {
           bikeNumber;
           accountStatus = "active";
           verificationStatus = "pending";
+          aadhaarImage = "";
         };
         riderDetails.add(phone, details);
         "ok";
@@ -247,7 +253,42 @@ actor {
     };
   };
 
-  // Admin functions - NO AccessControl checks (admin verified by password)
+  public shared ({ caller }) func uploadRiderAadhaarImage(phone : Text, imageData : Text) : async Text {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can upload documents");
+    };
+
+    switch (principalToPhone.get(caller)) {
+      case (null) {
+        Runtime.trap("Unauthorized: You must be logged in");
+      };
+      case (?callerPhone) {
+        if (callerPhone != phone) {
+          Runtime.trap("Unauthorized: You can only upload documents for your own account");
+        };
+      };
+    };
+
+    switch (riderDetails.get(phone)) {
+      case (null) { Runtime.trap("Rider not found") };
+      case (?details) {
+        let updatedDetails : RiderDetails = {
+          phone = details.phone;
+          name = details.name;
+          licenceNumber = details.licenceNumber;
+          aadhaarNumber = details.aadhaarNumber;
+          bikeNumber = details.bikeNumber;
+          accountStatus = details.accountStatus;
+          verificationStatus = details.verificationStatus;
+          aadhaarImage = imageData;
+        };
+        riderDetails.add(phone, updatedDetails);
+        "ok";
+      };
+    };
+  };
+
+  // Admin functions - require admin permission
   public query ({ caller }) func getAllRiders() : async [RiderDetails] {
     riderDetails.values().toArray();
   };
@@ -264,6 +305,7 @@ actor {
           bikeNumber = details.bikeNumber;
           accountStatus = "suspended";
           verificationStatus = details.verificationStatus;
+          aadhaarImage = details.aadhaarImage;
         };
         riderDetails.add(phone, updatedDetails);
         "ok";
@@ -283,6 +325,7 @@ actor {
           bikeNumber = details.bikeNumber;
           accountStatus = "active";
           verificationStatus = details.verificationStatus;
+          aadhaarImage = details.aadhaarImage;
         };
         riderDetails.add(phone, updatedDetails);
         "ok";
@@ -303,8 +346,11 @@ actor {
           licenceNumber = details.licenceNumber;
           aadhaarNumber = details.aadhaarNumber;
           bikeNumber = details.bikeNumber;
-          accountStatus = details.accountStatus;
+          accountStatus = if (verificationStatus == "approved") {
+            "active";
+          } else { "inactive" };
           verificationStatus;
+          aadhaarImage = details.aadhaarImage;
         };
         riderDetails.add(phone, updatedDetails);
         "ok";
@@ -317,11 +363,14 @@ actor {
   };
 
   // ************************************
-  // Ride Management Functions (no AccessControl checks)
+  // Ride Management Functions
   // ************************************
 
   public shared ({ caller }) func createRide(customerPhone : Text, customerName : Text, pickup : Text, drop : Text, fare : Nat) : async Ride {
-    // Verify caller owns the customer phone
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can create rides");
+    };
+
     switch (principalToPhone.get(caller)) {
       case (null) {
         Runtime.trap("Unauthorized: You must be logged in to create a ride");
@@ -348,6 +397,7 @@ actor {
           driverPhone = null;
           bikeNumber = null;
           createdAt = Time.now();
+          rideStartCode = null;
         };
         rides.add(nextRideId, ride);
         nextRideId += 1;
@@ -357,27 +407,34 @@ actor {
   };
 
   public query ({ caller }) func getPendingRides() : async [Ride] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can view pending rides");
+    };
+
     let pendingRides = rides.values().toArray().filter(func(ride) { ride.status == "pending" });
     pendingRides.sort(
       func(a, b) {
-        switch (Int.compare(b.createdAt, a.createdAt)) {
-          case (#greater) { #greater };
-          case (#less) { #less };
-          case (#equal) { Nat.compare(b.id, a.id) };
+        if (b.createdAt > a.createdAt) {
+          #greater;
+        } else {
+          Nat.compare(b.id, a.id);
         };
       }
     );
   };
 
   public shared ({ caller }) func acceptRide(rideId : Nat, driverPhone : Text, driverName : Text, bikeNumber : Text) : async Text {
-    // Verify caller is the rider accepting the ride
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can accept rides");
+    };
+
     switch (principalToPhone.get(caller)) {
       case (null) {
         Runtime.trap("Unauthorized: You must be logged in to accept rides");
       };
       case (?callerPhone) {
         if (callerPhone != driverPhone) {
-          Runtime.trap("Unauthorized: You can only accept rides for yourself");
+          Runtime.trap("Unauthorized: You can only accept rides for your own account");
         };
       };
     };
@@ -388,12 +445,16 @@ actor {
         if (details.accountStatus != "active") {
           Runtime.trap("Rider account is not active");
         };
+        if (details.verificationStatus != "approved") {
+          Runtime.trap("Rider account not approved for rides");
+        };
         switch (rides.get(rideId)) {
           case (null) { Runtime.trap("Ride not found") };
           case (?ride) {
             if (ride.status != "pending") {
               Runtime.trap("Ride is not available for acceptance");
             } else {
+              let startCode = generateStartCode(rideId, ride.createdAt);
               let updatedRide : Ride = {
                 id = ride.id;
                 customerPhone = ride.customerPhone;
@@ -406,6 +467,7 @@ actor {
                 driverPhone = ?driverPhone;
                 bikeNumber = ?bikeNumber;
                 createdAt = ride.createdAt;
+                rideStartCode = ?startCode;
               };
               rides.add(rideId, updatedRide);
               "ok";
@@ -416,15 +478,77 @@ actor {
     };
   };
 
+  public shared ({ caller }) func startRideWithCode(rideId : Nat, driverPhone : Text, code : Text) : async Text {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can start rides");
+    };
+
+    switch (principalToPhone.get(caller)) {
+      case (null) {
+        Runtime.trap("Unauthorized: You must be logged in to start rides");
+      };
+      case (?callerPhone) {
+        if (callerPhone != driverPhone) {
+          Runtime.trap("Unauthorized: You can only start rides assigned to you");
+        };
+      };
+    };
+
+    switch (rides.get(rideId)) {
+      case (null) { Runtime.trap("Ride not found") };
+      case (?ride) {
+        if (ride.status != "accepted") {
+          Runtime.trap("Ride is not in accepted state");
+        };
+        switch (ride.driverPhone) {
+          case (?phone) {
+            if (phone != driverPhone) {
+              Runtime.trap("This ride belongs to a different driver");
+            };
+          };
+          case (null) { Runtime.trap("Ride has no assigned driver") };
+        };
+        switch (ride.rideStartCode) {
+          case (?expectedCode) {
+            if (expectedCode != code) {
+              Runtime.trap("Invalid ride start code");
+            };
+          };
+          case (null) { Runtime.trap("No valid ride start code defined") };
+        };
+
+        let updatedRide : Ride = {
+          id = ride.id;
+          customerPhone = ride.customerPhone;
+          customerName = ride.customerName;
+          pickup = ride.pickup;
+          drop = ride.drop;
+          fare = ride.fare;
+          status = "in_progress";
+          driverName = ride.driverName;
+          driverPhone = ride.driverPhone;
+          bikeNumber = ride.bikeNumber;
+          createdAt = ride.createdAt;
+          rideStartCode = ride.rideStartCode;
+        };
+        rides.add(rideId, updatedRide);
+        "ok";
+      };
+    };
+  };
+
   public shared ({ caller }) func completeRide(rideId : Nat, driverPhone : Text) : async Text {
-    // Verify caller is the assigned driver
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can complete rides");
+    };
+
     switch (principalToPhone.get(caller)) {
       case (null) {
         Runtime.trap("Unauthorized: You must be logged in to complete rides");
       };
       case (?callerPhone) {
         if (callerPhone != driverPhone) {
-          Runtime.trap("Unauthorized: You can only complete your own rides");
+          Runtime.trap("Unauthorized: You can only complete rides assigned to you");
         };
       };
     };
@@ -440,8 +564,8 @@ actor {
           };
           case (null) { Runtime.trap("Ride has no assigned driver") };
         };
-        if (ride.status != "accepted") {
-          Runtime.trap("Ride is not in progress");
+        if (ride.status != "in_progress" and ride.status != "accepted") {
+          Runtime.trap("Ride is not in an active state");
         } else {
           let updatedRide : Ride = {
             id = ride.id;
@@ -455,6 +579,7 @@ actor {
             driverPhone = ride.driverPhone;
             bikeNumber = ride.bikeNumber;
             createdAt = ride.createdAt;
+            rideStartCode = ride.rideStartCode;
           };
           rides.add(rideId, updatedRide);
 
@@ -492,24 +617,47 @@ actor {
   };
 
   public shared ({ caller }) func cancelRide(rideId : Nat) : async Text {
-    switch (rides.get(rideId)) {
-      case (null) { Runtime.trap("Ride not found") };
-      case (?ride) {
-        let updatedRide : Ride = {
-          id = ride.id;
-          customerPhone = ride.customerPhone;
-          customerName = ride.customerName;
-          pickup = ride.pickup;
-          drop = ride.drop;
-          fare = ride.fare;
-          status = "cancelled";
-          driverName = ride.driverName;
-          driverPhone = ride.driverPhone;
-          bikeNumber = ride.bikeNumber;
-          createdAt = ride.createdAt;
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can cancel rides");
+    };
+
+    switch (principalToPhone.get(caller)) {
+      case (null) {
+        Runtime.trap("Unauthorized: You must be logged in to cancel rides");
+      };
+      case (?callerPhone) {
+        switch (rides.get(rideId)) {
+          case (null) { Runtime.trap("Ride not found") };
+          case (?ride) {
+            // Only the customer who created the ride or the assigned driver can cancel
+            let isCustomer = ride.customerPhone == callerPhone;
+            let isDriver = switch (ride.driverPhone) {
+              case (null) { false };
+              case (?driverPhone) { driverPhone == callerPhone };
+            };
+
+            if (not isCustomer and not isDriver) {
+              Runtime.trap("Unauthorized: You can only cancel your own rides");
+            };
+
+            let updatedRide : Ride = {
+              id = ride.id;
+              customerPhone = ride.customerPhone;
+              customerName = ride.customerName;
+              pickup = ride.pickup;
+              drop = ride.drop;
+              fare = ride.fare;
+              status = "cancelled";
+              driverName = ride.driverName;
+              driverPhone = ride.driverPhone;
+              bikeNumber = ride.bikeNumber;
+              createdAt = ride.createdAt;
+              rideStartCode = ride.rideStartCode;
+            };
+            rides.add(rideId, updatedRide);
+            "ok";
+          };
         };
-        rides.add(rideId, updatedRide);
-        "ok";
       };
     };
   };
@@ -519,21 +667,51 @@ actor {
   };
 
   public query ({ caller }) func getActiveRideForCustomer(customerPhone : Text) : async ?Ride {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can view active rides");
+    };
+
+    switch (principalToPhone.get(caller)) {
+      case (null) {
+        Runtime.trap("Unauthorized: You must be logged in");
+      };
+      case (?callerPhone) {
+        if (callerPhone != customerPhone) {
+          Runtime.trap("Unauthorized: You can only view your own active rides");
+        };
+      };
+    };
+
     rides.values().find(
       func(ride) {
         ride.customerPhone == customerPhone and (
-          ride.status == "pending" or ride.status == "accepted"
+          ride.status == "pending" or ride.status == "accepted" or ride.status == "in_progress"
         );
       }
     );
   };
 
   public query ({ caller }) func getActiveRideForRider(driverPhone : Text) : async ?Ride {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can view active rides");
+    };
+
+    switch (principalToPhone.get(caller)) {
+      case (null) {
+        Runtime.trap("Unauthorized: You must be logged in");
+      };
+      case (?callerPhone) {
+        if (callerPhone != driverPhone) {
+          Runtime.trap("Unauthorized: You can only view your own active rides");
+        };
+      };
+    };
+
     rides.values().find(
       func(ride) {
         switch (ride.driverPhone) {
           case (null) { false };
-          case (?phone) { phone == driverPhone and ride.status == "accepted" };
+          case (?phone) { phone == driverPhone and (ride.status == "accepted" or ride.status == "in_progress") };
         };
       }
     );
@@ -548,7 +726,10 @@ actor {
   // ************************************
 
   public shared ({ caller }) func setRiderStatus(phone : Text, status : Text) : async Text {
-    // Verify caller owns this phone number
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can set rider status");
+    };
+
     switch (principalToPhone.get(caller)) {
       case (null) {
         Runtime.trap("Unauthorized: You must be logged in to set rider status");
@@ -562,7 +743,6 @@ actor {
 
     switch (riderProfiles.get(phone)) {
       case (null) {
-        // Create profile on the fly
         switch (users.get(phone)) {
           case (null) { Runtime.trap("User not found") };
           case (?user) {
@@ -591,6 +771,21 @@ actor {
   };
 
   public shared ({ caller }) func getRiderProfile(phone : Text) : async RiderProfile {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only registered users can view rider profiles");
+    };
+
+    switch (principalToPhone.get(caller)) {
+      case (null) {
+        Runtime.trap("Unauthorized: You must be logged in to view rider profiles");
+      };
+      case (?callerPhone) {
+        if (callerPhone != phone) {
+          Runtime.trap("Unauthorized: You can only view your own rider profile");
+        };
+      };
+    };
+
     switch (riderProfiles.get(phone)) {
       case (null) {
         switch (users.get(phone)) {
@@ -616,6 +811,6 @@ actor {
   // ************************************
 
   public query ({ caller }) func getDemoCustomers() : async [RideCustomerRequest] {
-    demoCustomers.values().toArray();
+    [];
   };
 };

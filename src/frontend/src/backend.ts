@@ -106,6 +106,7 @@ export interface Ride {
     bikeNumber?: string;
     createdAt: bigint;
     pickup: string;
+    rideStartCode?: string;
     driverName?: string;
 }
 export interface RiderProfile {
@@ -128,6 +129,7 @@ export interface RiderDetails {
     name: string;
     aadhaarNumber: string;
     phone: string;
+    aadhaarImage: string;
     verificationStatus: string;
 }
 export interface UserProfile {
@@ -167,7 +169,9 @@ export interface backendInterface {
     registerUser(name: string, phone: string, password: string, role: string): Promise<string>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setRiderStatus(phone: string, status: string): Promise<string>;
+    startRideWithCode(rideId: bigint, driverPhone: string, code: string): Promise<string>;
     suspendRider(phone: string): Promise<string>;
+    uploadRiderAadhaarImage(phone: string, imageData: string): Promise<string>;
     verifyRider(phone: string, verificationStatus: string): Promise<string>;
 }
 import type { Ride as _Ride, RiderDetails as _RiderDetails, User as _User, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
@@ -537,6 +541,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async startRideWithCode(arg0: bigint, arg1: string, arg2: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.startRideWithCode(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.startRideWithCode(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async suspendRider(arg0: string): Promise<string> {
         if (this.processError) {
             try {
@@ -548,6 +566,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.suspendRider(arg0);
+            return result;
+        }
+    }
+    async uploadRiderAadhaarImage(arg0: string, arg1: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.uploadRiderAadhaarImage(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.uploadRiderAadhaarImage(arg0, arg1);
             return result;
         }
     }
@@ -598,6 +630,7 @@ function from_candid_record_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint
     bikeNumber: [] | [string];
     createdAt: bigint;
     pickup: string;
+    rideStartCode: [] | [string];
     driverName: [] | [string];
 }): {
     id: bigint;
@@ -610,6 +643,7 @@ function from_candid_record_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint
     bikeNumber?: string;
     createdAt: bigint;
     pickup: string;
+    rideStartCode?: string;
     driverName?: string;
 } {
     return {
@@ -623,6 +657,7 @@ function from_candid_record_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint
         bikeNumber: record_opt_to_undefined(from_candid_opt_n5(_uploadFile, _downloadFile, value.bikeNumber)),
         createdAt: value.createdAt,
         pickup: value.pickup,
+        rideStartCode: record_opt_to_undefined(from_candid_opt_n5(_uploadFile, _downloadFile, value.rideStartCode)),
         driverName: record_opt_to_undefined(from_candid_opt_n5(_uploadFile, _downloadFile, value.driverName))
     };
 }

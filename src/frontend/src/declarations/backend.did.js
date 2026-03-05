@@ -24,6 +24,7 @@ export const Ride = IDL.Record({
   'bikeNumber' : IDL.Opt(IDL.Text),
   'createdAt' : IDL.Int,
   'pickup' : IDL.Text,
+  'rideStartCode' : IDL.Opt(IDL.Text),
   'driverName' : IDL.Opt(IDL.Text),
 });
 export const RiderDetails = IDL.Record({
@@ -33,6 +34,7 @@ export const RiderDetails = IDL.Record({
   'name' : IDL.Text,
   'aadhaarNumber' : IDL.Text,
   'phone' : IDL.Text,
+  'aadhaarImage' : IDL.Text,
   'verificationStatus' : IDL.Text,
 });
 export const UserProfile = IDL.Record({
@@ -107,7 +109,9 @@ export const idlService = IDL.Service({
     ),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'setRiderStatus' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+  'startRideWithCode' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text], [IDL.Text], []),
   'suspendRider' : IDL.Func([IDL.Text], [IDL.Text], []),
+  'uploadRiderAadhaarImage' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   'verifyRider' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
 });
 
@@ -130,6 +134,7 @@ export const idlFactory = ({ IDL }) => {
     'bikeNumber' : IDL.Opt(IDL.Text),
     'createdAt' : IDL.Int,
     'pickup' : IDL.Text,
+    'rideStartCode' : IDL.Opt(IDL.Text),
     'driverName' : IDL.Opt(IDL.Text),
   });
   const RiderDetails = IDL.Record({
@@ -139,6 +144,7 @@ export const idlFactory = ({ IDL }) => {
     'name' : IDL.Text,
     'aadhaarNumber' : IDL.Text,
     'phone' : IDL.Text,
+    'aadhaarImage' : IDL.Text,
     'verificationStatus' : IDL.Text,
   });
   const UserProfile = IDL.Record({
@@ -225,7 +231,13 @@ export const idlFactory = ({ IDL }) => {
       ),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'setRiderStatus' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+    'startRideWithCode' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text],
+        [IDL.Text],
+        [],
+      ),
     'suspendRider' : IDL.Func([IDL.Text], [IDL.Text], []),
+    'uploadRiderAadhaarImage' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
     'verifyRider' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   });
 };

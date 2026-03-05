@@ -5,6 +5,7 @@ import {
   IndianRupee,
   LayoutDashboard,
   LogOut,
+  Settings,
   Shield,
   Users,
 } from "lucide-react";
@@ -17,13 +18,14 @@ import AdminRideHistoryScreen from "./AdminRideHistoryScreen";
 import AdminRiderManagementScreen from "./AdminRiderManagementScreen";
 import AdminSuspendActivateScreen from "./AdminSuspendActivateScreen";
 
-type AdminTab = "dashboard" | "riders" | "history" | "suspend";
+type AdminTab = "dashboard" | "riders" | "history" | "suspend" | "settings";
 
 const NAV_TABS = [
-  { value: "dashboard" as AdminTab, icon: LayoutDashboard, label: "Dashboard" },
+  { value: "dashboard" as AdminTab, icon: LayoutDashboard, label: "Home" },
   { value: "riders" as AdminTab, icon: Users, label: "Riders" },
   { value: "history" as AdminTab, icon: History, label: "History" },
   { value: "suspend" as AdminTab, icon: Shield, label: "Actions" },
+  { value: "settings" as AdminTab, icon: Settings, label: "Settings" },
 ];
 
 interface StatCardProps {
@@ -69,6 +71,130 @@ function StatCard({
           {label}
         </p>
       </div>
+    </motion.div>
+  );
+}
+
+function AdminFareSettingsPanel() {
+  // Fare settings are currently read-only (backend fare config API not yet available)
+  // They reflect the fare formula: ₹10 base (3 km) + ₹5/km after
+  const fareConfig = [
+    { label: "Base Fare", value: "₹10", desc: "For first 3 km" },
+    { label: "Base Distance", value: "3 km", desc: "Included in base fare" },
+    { label: "Extra Rate", value: "₹5/km", desc: "Per km after base distance" },
+    {
+      label: "Example",
+      value: "5 km = ₹20",
+      desc: "10 + (5−3) × 5 = ₹20",
+    },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="px-4 pt-5 pb-6"
+    >
+      <div className="mb-6">
+        <h1
+          className="font-display text-2xl font-bold"
+          style={{ color: "oklch(0.97 0.01 90)" }}
+        >
+          Fare Settings
+        </h1>
+        <p className="text-sm mt-1" style={{ color: "oklch(0.55 0.03 265)" }}>
+          Current fare configuration
+        </p>
+      </div>
+
+      {/* Fare formula card */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="rounded-2xl p-5 mb-5"
+        style={{
+          background: "oklch(0.17 0.015 265)",
+          border: "1px solid oklch(0.28 0.02 265)",
+        }}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: "oklch(0.82 0.14 80 / 15%)" }}
+          >
+            <IndianRupee size={16} style={{ color: "oklch(0.82 0.14 80)" }} />
+          </div>
+          <p
+            className="font-display font-bold text-base"
+            style={{ color: "oklch(0.97 0.01 90)" }}
+          >
+            Fare Formula
+          </p>
+        </div>
+        <div
+          className="rounded-xl p-3 mb-4 font-mono text-sm text-center"
+          style={{
+            background: "oklch(0.13 0.01 265)",
+            color: "oklch(0.82 0.14 80)",
+            border: "1px solid oklch(0.82 0.14 80 / 20%)",
+          }}
+        >
+          Fare = ₹10 + max(0, km − 3) × ₹5
+        </div>
+        <div className="space-y-3">
+          {fareConfig.map(({ label, value, desc }) => (
+            <div
+              key={label}
+              className="flex items-center justify-between"
+              style={{ borderBottom: "1px solid oklch(0.22 0.01 265)" }}
+            >
+              <div className="pb-3">
+                <p
+                  className="text-sm font-semibold"
+                  style={{ color: "oklch(0.8 0.02 265)" }}
+                >
+                  {label}
+                </p>
+                <p className="text-xs" style={{ color: "oklch(0.5 0.03 265)" }}>
+                  {desc}
+                </p>
+              </div>
+              <span
+                className="pb-3 text-sm font-bold font-mono"
+                style={{ color: "oklch(0.82 0.14 80)" }}
+              >
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Info notice */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="rounded-2xl p-4 flex items-start gap-3"
+        style={{
+          background: "oklch(0.72 0.18 260 / 8%)",
+          border: "1px solid oklch(0.72 0.18 260 / 25%)",
+        }}
+      >
+        <Settings
+          size={16}
+          className="flex-shrink-0 mt-0.5"
+          style={{ color: "oklch(0.72 0.18 260)" }}
+        />
+        <p
+          className="text-xs leading-relaxed"
+          style={{ color: "oklch(0.6 0.03 265)" }}
+        >
+          To change fare rates, contact the platform team. Dynamic fare
+          configuration will be available in a future update.
+        </p>
+      </motion.div>
     </motion.div>
   );
 }
@@ -151,7 +277,7 @@ export default function AdminDashboardScreen({ onLogout }: Props) {
               className="font-display font-bold text-sm leading-tight"
               style={{ color: "oklch(0.97 0.01 90)" }}
             >
-              Ride Nalbari Admin
+              Nalbari Ride Admin
             </p>
             <p className="text-xs" style={{ color: "oklch(0.5 0.03 265)" }}>
               Management Portal
@@ -328,6 +454,13 @@ export default function AdminDashboardScreen({ onLogout }: Props) {
                     tab: "history" as AdminTab,
                     accent: "oklch(0.82 0.14 80)",
                   },
+                  {
+                    icon: Settings,
+                    label: "Fare Settings",
+                    sub: "View fare configuration",
+                    tab: "settings" as AdminTab,
+                    accent: "oklch(0.72 0.18 260)",
+                  },
                 ].map(({ icon: Icon, label, sub, tab, accent }) => (
                   <button
                     key={tab}
@@ -370,6 +503,7 @@ export default function AdminDashboardScreen({ onLogout }: Props) {
         {activeTab === "riders" && <AdminRiderManagementScreen />}
         {activeTab === "history" && <AdminRideHistoryScreen />}
         {activeTab === "suspend" && <AdminSuspendActivateScreen />}
+        {activeTab === "settings" && <AdminFareSettingsPanel />}
       </main>
 
       {/* Bottom Navigation */}

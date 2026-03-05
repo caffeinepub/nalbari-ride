@@ -4,10 +4,12 @@ import { Switch } from "@/components/ui/switch";
 import {
   AlertTriangle,
   Bike,
+  Clock,
   IndianRupee,
   LogOut,
   Phone,
   TrendingUp,
+  XCircle,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
@@ -128,8 +130,169 @@ export default function RiderHomeScreen({
     );
   }
 
+  // Show pending verification notice
+  if (riderDetails && riderDetails.verificationStatus === "pending") {
+    return (
+      <div
+        data-ocid="rider_home.pending_state"
+        className="screen-fill px-6 pt-12 pb-10 flex flex-col items-center justify-center"
+        style={{ background: "oklch(0.11 0.01 265)" }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col items-center text-center gap-5 max-w-sm"
+        >
+          {/* Amber clock icon */}
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center"
+            style={{
+              background: "oklch(0.82 0.14 80 / 15%)",
+              border: "2px solid oklch(0.82 0.14 80 / 35%)",
+              boxShadow: "0 0 40px oklch(0.82 0.14 80 / 20%)",
+            }}
+          >
+            <Clock size={38} style={{ color: "oklch(0.82 0.14 80)" }} />
+          </div>
+
+          <div>
+            <h2
+              className="font-display text-2xl font-bold mb-3"
+              style={{ color: "oklch(0.82 0.14 80)" }}
+            >
+              Pending Verification
+            </h2>
+            <p
+              className="text-sm leading-relaxed"
+              style={{ color: "oklch(0.62 0.03 265)" }}
+            >
+              Your registration is under review. The Nalbari Ride team will
+              verify your Aadhaar card and documents. You'll be able to go
+              online once approved.
+            </p>
+          </div>
+
+          <div
+            className="flex items-center gap-2 px-5 py-3 rounded-xl w-full justify-center"
+            style={{
+              background: "oklch(0.17 0.015 265)",
+              border: "1px solid oklch(0.28 0.02 265)",
+            }}
+          >
+            <Phone size={16} style={{ color: "oklch(0.72 0.18 260)" }} />
+            <span
+              className="font-mono font-semibold text-sm"
+              style={{ color: "oklch(0.9 0.01 90)" }}
+            >
+              +91 96787 84288
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all"
+            style={{
+              background: "oklch(0.82 0.14 80 / 12%)",
+              border: "1px solid oklch(0.82 0.14 80 / 28%)",
+              color: "oklch(0.82 0.14 80)",
+            }}
+          >
+            <LogOut size={15} />
+            Logout
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Show rejection notice
+  if (riderDetails && riderDetails.verificationStatus === "rejected") {
+    return (
+      <div
+        data-ocid="rider_home.rejected_state"
+        className="screen-fill px-6 pt-12 pb-10 flex flex-col items-center justify-center"
+        style={{ background: "oklch(0.11 0.01 265)" }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col items-center text-center gap-5 max-w-sm"
+        >
+          {/* Red X circle icon */}
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center"
+            style={{
+              background: "oklch(0.63 0.22 27 / 15%)",
+              border: "2px solid oklch(0.63 0.22 27 / 35%)",
+              boxShadow: "0 0 40px oklch(0.63 0.22 27 / 20%)",
+            }}
+          >
+            <XCircle size={38} style={{ color: "oklch(0.75 0.16 27)" }} />
+          </div>
+
+          <div>
+            <h2
+              className="font-display text-2xl font-bold mb-3"
+              style={{ color: "oklch(0.75 0.16 27)" }}
+            >
+              Registration Rejected
+            </h2>
+            <p
+              className="text-sm leading-relaxed"
+              style={{ color: "oklch(0.62 0.03 265)" }}
+            >
+              Your registration has been rejected. Please contact Nalbari Ride
+              support to resolve the issue or re-register with correct
+              documents.
+            </p>
+          </div>
+
+          <div
+            className="flex items-center gap-2 px-5 py-3 rounded-xl w-full justify-center"
+            style={{
+              background: "oklch(0.17 0.015 265)",
+              border: "1px solid oklch(0.28 0.02 265)",
+            }}
+          >
+            <Phone size={16} style={{ color: "oklch(0.72 0.18 260)" }} />
+            <span
+              className="font-mono font-semibold text-sm"
+              style={{ color: "oklch(0.9 0.01 90)" }}
+            >
+              +91 96787 84288
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all"
+            style={{
+              background: "oklch(0.63 0.22 27 / 15%)",
+              border: "1px solid oklch(0.63 0.22 27 / 30%)",
+              color: "oklch(0.75 0.16 27)",
+            }}
+          >
+            <LogOut size={15} />
+            Logout
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   const handleToggle = async (checked: boolean) => {
     if (!actor) return;
+
+    // Block non-approved riders from going online
+    if (riderDetails?.verificationStatus !== "approved") {
+      toast.error("Your account must be approved before going online");
+      return;
+    }
+
     setToggling(true);
     try {
       // Ensure rider profile exists before updating status (prevents trap if not created yet)

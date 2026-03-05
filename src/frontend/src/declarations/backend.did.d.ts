@@ -21,6 +21,7 @@ export interface Ride {
   'bikeNumber' : [] | [string],
   'createdAt' : bigint,
   'pickup' : string,
+  'rideStartCode' : [] | [string],
   'driverName' : [] | [string],
 }
 export interface RideCustomerRequest {
@@ -36,6 +37,7 @@ export interface RiderDetails {
   'name' : string,
   'aadhaarNumber' : string,
   'phone' : string,
+  'aadhaarImage' : string,
   'verificationStatus' : string,
 }
 export interface RiderProfile {
@@ -89,7 +91,9 @@ export interface _SERVICE {
   'registerUser' : ActorMethod<[string, string, string, string], string>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'setRiderStatus' : ActorMethod<[string, string], string>,
+  'startRideWithCode' : ActorMethod<[bigint, string, string], string>,
   'suspendRider' : ActorMethod<[string], string>,
+  'uploadRiderAadhaarImage' : ActorMethod<[string, string], string>,
   'verifyRider' : ActorMethod<[string, string], string>,
 }
 export declare const idlService: IDL.ServiceClass;

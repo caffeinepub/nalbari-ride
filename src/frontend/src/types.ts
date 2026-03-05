@@ -22,9 +22,26 @@ export interface StoredUser {
   role: UserRole;
 }
 
-export const BASE_FARE = 15n;
-export const RATE_PER_KM = 3n; // Rs. 3 per km, 5km range = Rs. 15–30
-export const MIN_FARE = 15n; // short distance minimum
-export const MAX_FARE = 30n; // max estimate
-export const FIXED_FARE = 15n; // base fare for bookings
+// Fare system: ₹10 base for first 3 km, then ₹5/km extra
+// Formula: fare = 10 + max(0, distKm - 3) * 5
+export const BASE_FARE_KM = 3;
+export const BASE_FARE_COST = 10n;
+export const EXTRA_FARE_PER_KM = 5n;
+
+export function calcFare(distKm: number): bigint {
+  if (distKm <= 3) return 10n;
+  return 10n + BigInt(Math.round((distKm - 3) * 5));
+}
+
+// Default booking fare (assumes ~5 km trip): 10 + (5-3)*5 = ₹20
+export const DEFAULT_FARE = 20n;
+export const MIN_DISPLAY_FARE = "10";
+export const MAX_DISPLAY_FARE = "35";
+
+// Legacy aliases kept for backward compat (LandingPage uses some of these)
+export const BASE_FARE = BASE_FARE_COST;
+export const RATE_PER_KM = EXTRA_FARE_PER_KM;
+export const MIN_FARE = BASE_FARE_COST;
+export const MAX_FARE = 35n;
+export const FIXED_FARE = DEFAULT_FARE;
 export const BIKE_NUMBER = "AS-01-AB-1234";

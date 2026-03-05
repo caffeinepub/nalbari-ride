@@ -1,10 +1,17 @@
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertCircle,
   AlertTriangle,
   Bike,
   CheckCircle,
+  FileImage,
   Loader2,
   RefreshCw,
   UserX,
@@ -15,6 +22,34 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { RiderDetails } from "../backend.d";
 import { useActor } from "../hooks/useActor";
+
+/** Show a note about additional docs that were stored in localStorage during registration */
+function LocalDocsNote({ phone }: { phone: string }) {
+  let hasLocalDocs = false;
+  try {
+    const raw = localStorage.getItem(`rider_docs_${phone}`);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      hasLocalDocs = Object.keys(parsed).length > 0;
+    }
+  } catch {
+    // ignore
+  }
+
+  if (!hasLocalDocs) {
+    return (
+      <p className="text-xs mt-2" style={{ color: "oklch(0.45 0.03 265)" }}>
+        Driving Licence / Bike Photo / Selfie: Not uploaded
+      </p>
+    );
+  }
+
+  return (
+    <p className="text-xs mt-2" style={{ color: "oklch(0.72 0.18 260)" }}>
+      ✓ Driving Licence / Bike Photo / Selfie stored on this device
+    </p>
+  );
+}
 
 function maskLicence(licence: string): string {
   if (licence.length <= 4) return licence;
@@ -75,6 +110,7 @@ function StatusBadge({
           border: "1px solid oklch(0.78 0.17 142 / 30%)",
         }}
       >
+        <CheckCircle size={10} />
         Approved
       </span>
     );
@@ -103,7 +139,7 @@ function StatusBadge({
         border: "1px solid oklch(0.82 0.14 80 / 30%)",
       }}
     >
-      Pending
+      Pending Verification
     </span>
   );
 }
@@ -114,6 +150,7 @@ export default function AdminRiderManagementScreen() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [viewingAadhaar, setViewingAadhaar] = useState<string | null>(null);
 
   const fetchRiders = useCallback(async () => {
     if (!actor) return;
@@ -216,6 +253,42 @@ export default function AdminRiderManagementScreen() {
 
   return (
     <div data-ocid="admin_riders.page" className="pb-6">
+      {/* Aadhaar Image Dialog */}
+      <Dialog
+        open={viewingAadhaar !== null}
+        onOpenChange={(open) => {
+          if (!open) setViewingAadhaar(null);
+        }}
+      >
+        <DialogContent
+          data-ocid="admin_riders.dialog"
+          className="max-w-sm mx-auto rounded-2xl p-0 overflow-hidden"
+          style={{
+            background: "oklch(0.15 0.015 265)",
+            border: "1px solid oklch(0.28 0.02 265)",
+          }}
+        >
+          <DialogHeader className="px-5 pt-5 pb-3">
+            <DialogTitle
+              className="font-display text-lg font-bold"
+              style={{ color: "oklch(0.97 0.01 90)" }}
+            >
+              Aadhaar Card
+            </DialogTitle>
+          </DialogHeader>
+          <div className="px-5 pb-5">
+            {viewingAadhaar && (
+              <img
+                src={viewingAadhaar}
+                alt="Rider Aadhaar card"
+                className="w-full rounded-xl object-contain"
+                style={{ maxHeight: "320px" }}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Section header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <div>
@@ -407,6 +480,62 @@ export default function AdminRiderManagementScreen() {
                       {maskAadhaar(rider.aadhaarNumber || "")}
                     </span>
                   </div>
+
+                  {/* Aadhaar card image section */}
+                  <div className="pt-1">
+                    <span
+                      className="text-xs block mb-2"
+                      style={{ color: "oklch(0.5 0.03 265)" }}
+                    >
+                      Aadhaar Card
+                    </span>
+                    {rider.aadhaarImage ? (
+                      <button
+                        type="button"
+                        data-ocid={`admin_riders.upload_button.${index + 1}`}
+                        onClick={() => setViewingAadhaar(rider.aadhaarImage)}
+                        className="relative overflow-hidden rounded-xl transition-all active:scale-95 hover:opacity-90"
+                        style={{
+                          width: "80px",
+                          height: "80px",
+                          border: "1px solid oklch(0.78 0.17 142 / 35%)",
+                        }}
+                        title="View Aadhaar card"
+                      >
+                        <img
+                          src={rider.aadhaarImage}
+                          alt="Aadhaar card"
+                          className="w-full h-full object-cover"
+                        />
+                        <div
+                          className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+                          style={{
+                            background: "oklch(0.13 0.01 265 / 70%)",
+                          }}
+                        >
+                          <FileImage
+                            size={18}
+                            style={{ color: "oklch(0.85 0.15 142)" }}
+                          />
+                        </div>
+                      </button>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold"
+                        style={{
+                          background: "oklch(0.82 0.14 80 / 12%)",
+                          color: "oklch(0.82 0.14 80)",
+                          border: "1px solid oklch(0.82 0.14 80 / 28%)",
+                        }}
+                      >
+                        <AlertCircle size={10} />
+                        No Aadhaar uploaded
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Other docs note */}
+                  <LocalDocsNote phone={rider.phone} />
                 </div>
 
                 {/* Action buttons */}

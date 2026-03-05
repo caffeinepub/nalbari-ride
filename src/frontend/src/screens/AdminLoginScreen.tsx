@@ -133,7 +133,7 @@ export default function AdminLoginScreen({ onSuccess, onBack }: Props) {
           className="text-sm text-center mb-10"
           style={{ color: "oklch(0.55 0.03 265)" }}
         >
-          Ride Nalbari Management Portal
+          Nalbari Ride Management Portal
         </p>
 
         <div className="flex flex-col gap-5">
