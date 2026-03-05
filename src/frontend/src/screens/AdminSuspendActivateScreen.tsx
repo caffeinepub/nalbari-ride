@@ -1,5 +1,12 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bike, CheckCircle, Loader2, RefreshCw, UserX } from "lucide-react";
+import {
+  AlertTriangle,
+  Bike,
+  CheckCircle,
+  Loader2,
+  RefreshCw,
+  UserX,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -10,17 +17,21 @@ export default function AdminSuspendActivateScreen() {
   const { actor } = useActor();
   const [riders, setRiders] = useState<RiderDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchRiders = useCallback(async () => {
     if (!actor) return;
     setLoading(true);
+    setFetchError(null);
     try {
       const data = await actor.getAllRiders();
       setRiders(data);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load riders");
+      setFetchError(
+        "Admin data requires a special connection. Please reload the page and try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -39,7 +50,7 @@ export default function AdminSuspendActivateScreen() {
       await fetchRiders();
     } catch (err) {
       console.error(err);
-      toast.error("Failed to suspend rider");
+      toast.error("Action requires admin session. Please reload.");
     } finally {
       setActionLoading(null);
     }
@@ -54,7 +65,7 @@ export default function AdminSuspendActivateScreen() {
       await fetchRiders();
     } catch (err) {
       console.error(err);
-      toast.error("Failed to activate rider");
+      toast.error("Action requires admin session. Please reload.");
     } finally {
       setActionLoading(null);
     }
@@ -123,6 +134,48 @@ export default function AdminSuspendActivateScreen() {
           <RefreshCw size={16} />
         </button>
       </div>
+
+      {/* Error banner */}
+      {fetchError && (
+        <motion.div
+          data-ocid="admin_suspend.error_state"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-4 mb-4 rounded-2xl p-4 flex items-start gap-3"
+          style={{
+            background: "oklch(0.63 0.22 27 / 10%)",
+            border: "1px solid oklch(0.63 0.22 27 / 30%)",
+          }}
+        >
+          <AlertTriangle
+            size={18}
+            className="flex-shrink-0 mt-0.5"
+            style={{ color: "oklch(0.75 0.16 27)" }}
+          />
+          <div>
+            <p
+              className="text-sm font-semibold mb-1"
+              style={{ color: "oklch(0.75 0.16 27)" }}
+            >
+              Data unavailable
+            </p>
+            <p
+              className="text-xs leading-relaxed"
+              style={{ color: "oklch(0.55 0.03 265)" }}
+            >
+              {fetchError}
+            </p>
+            <button
+              type="button"
+              onClick={fetchRiders}
+              className="mt-2 text-xs font-semibold underline"
+              style={{ color: "oklch(0.72 0.18 260)" }}
+            >
+              Retry
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       <div className="px-4 space-y-5">
         {/* Active Riders section */}

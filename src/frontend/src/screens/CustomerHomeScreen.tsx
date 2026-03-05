@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { IndianRupee, Loader2, LogOut, MapPin, Navigation } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../hooks/useActor";
 import { FIXED_FARE, MAX_FARE, type StoredUser } from "../types";
@@ -19,7 +19,10 @@ export default function CustomerHomeScreen({
   onLogout,
   onRideCreated,
 }: Props) {
-  const { actor } = useActor();
+  const actorState = useActor();
+  const actorRef = useRef(actorState.actor);
+  actorRef.current = actorState.actor;
+
   const [pickup, setPickup] = useState("");
   const [drop, setDrop] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,14 +32,28 @@ export default function CustomerHomeScreen({
       toast.error("Please enter pickup and drop locations");
       return;
     }
-    if (!actor) {
-      toast.error("Connection not ready. Please wait.");
+
+    setLoading(true);
+
+    // Poll for actor if not yet ready
+    let currentActor = actorRef.current;
+    if (!currentActor) {
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        await new Promise((res) => setTimeout(res, 500));
+        currentActor = actorRef.current;
+        if (currentActor) break;
+      }
+    }
+
+    if (!currentActor) {
+      toast.error("Connection not ready. Please reload the page.");
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
     try {
-      const ride = await actor.createRide(
+      const ride = await currentActor.createRide(
         user.phone,
         user.name,
         pickup.trim(),
@@ -47,7 +64,12 @@ export default function CustomerHomeScreen({
       onRideCreated(ride.id);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to book ride. Please try again.");
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.toLowerCase().includes("customer not found")) {
+        toast.error("Session expired. Please log out and log in again.");
+      } else {
+        toast.error("Failed to book ride. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

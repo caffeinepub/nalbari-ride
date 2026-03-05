@@ -196,7 +196,7 @@ export default function LandingPage({
             className="flex items-center gap-2 focus:outline-none"
           >
             <img
-              src="/assets/generated/ride-nalbari-logo-transparent.dim_320x80.png"
+              src="/assets/uploads/Gemini_Generated_Image_zaxmavzaxmavzaxm-2-1.png"
               alt="Ride Nalbari"
               height={40}
               className="h-10 w-auto object-contain"
@@ -1234,7 +1234,7 @@ export default function LandingPage({
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
               <img
-                src="/assets/generated/ride-nalbari-logo-transparent.dim_320x80.png"
+                src="/assets/uploads/Gemini_Generated_Image_zaxmavzaxmavzaxm-2-1.png"
                 alt="Ride Nalbari"
                 height={32}
                 className="h-8 w-auto object-contain"

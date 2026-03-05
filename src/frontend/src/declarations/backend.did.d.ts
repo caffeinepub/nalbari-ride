@@ -23,6 +23,12 @@ export interface Ride {
   'pickup' : string,
   'driverName' : [] | [string],
 }
+export interface RideCustomerRequest {
+  'destination' : string,
+  'source' : string,
+  'name' : string,
+  'phone' : string,
+}
 export interface RiderDetails {
   'licenceNumber' : string,
   'accountStatus' : string,
@@ -68,6 +74,7 @@ export interface _SERVICE {
   'getAllRides' : ActorMethod<[], Array<Ride>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
+  'getDemoCustomers' : ActorMethod<[], Array<RideCustomerRequest>>,
   'getPendingRides' : ActorMethod<[], Array<Ride>>,
   'getRideById' : ActorMethod<[bigint], [] | [Ride]>,
   'getRiderDetails' : ActorMethod<[string], [] | [RiderDetails]>,

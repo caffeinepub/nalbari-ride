@@ -132,12 +132,14 @@ export default function RiderHomeScreen({
     if (!actor) return;
     setToggling(true);
     try {
+      // Ensure rider profile exists before updating status (prevents trap if not created yet)
+      await actor.getRiderProfile(user.phone);
       await actor.setRiderStatus(user.phone, checked ? "online" : "offline");
       setIsOnline(checked);
       toast.success(checked ? "You are now online!" : "You are now offline");
     } catch (err) {
       console.error(err);
-      toast.error("Failed to update status");
+      toast.error("Failed to update status. Please try again.");
     } finally {
       setToggling(false);
     }

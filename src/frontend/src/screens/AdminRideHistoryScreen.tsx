@@ -1,5 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  AlertTriangle,
   ArrowRight,
   Calendar,
   IndianRupee,
@@ -84,11 +85,13 @@ export default function AdminRideHistoryScreen() {
   const { actor } = useActor();
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
 
   const fetchRides = useCallback(async () => {
     if (!actor) return;
     setLoading(true);
+    setFetchError(null);
     try {
       const data = await actor.getAllRides();
       // Sort newest first
@@ -98,7 +101,9 @@ export default function AdminRideHistoryScreen() {
       setRides(sorted);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load ride history");
+      setFetchError(
+        "Admin data requires a special connection. Please reload the page and try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -205,7 +210,46 @@ export default function AdminRideHistoryScreen() {
       </div>
 
       {/* Ride list */}
-      {filteredRides.length === 0 ? (
+      {fetchError ? (
+        <motion.div
+          data-ocid="admin_rides.error_state"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-4 rounded-2xl p-4 flex items-start gap-3"
+          style={{
+            background: "oklch(0.63 0.22 27 / 10%)",
+            border: "1px solid oklch(0.63 0.22 27 / 30%)",
+          }}
+        >
+          <AlertTriangle
+            size={18}
+            className="flex-shrink-0 mt-0.5"
+            style={{ color: "oklch(0.75 0.16 27)" }}
+          />
+          <div>
+            <p
+              className="text-sm font-semibold mb-1"
+              style={{ color: "oklch(0.75 0.16 27)" }}
+            >
+              Data unavailable
+            </p>
+            <p
+              className="text-xs leading-relaxed"
+              style={{ color: "oklch(0.55 0.03 265)" }}
+            >
+              {fetchError}
+            </p>
+            <button
+              type="button"
+              onClick={fetchRides}
+              className="mt-2 text-xs font-semibold underline"
+              style={{ color: "oklch(0.72 0.18 260)" }}
+            >
+              Retry
+            </button>
+          </div>
+        </motion.div>
+      ) : filteredRides.length === 0 ? (
         <motion.div
           data-ocid="admin_rides.empty_state"
           initial={{ opacity: 0, y: 12 }}

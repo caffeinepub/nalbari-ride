@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Bike,
   History,
   IndianRupee,
@@ -82,10 +83,12 @@ export default function AdminDashboardScreen({ onLogout }: Props) {
   const [riders, setRiders] = useState<RiderDetails[]>([]);
   const [rides, setRides] = useState<Ride[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
     if (!actor) return;
     setStatsLoading(true);
+    setStatsError(null);
     try {
       const [ridersData, ridesData] = await Promise.all([
         actor.getAllRiders(),
@@ -95,7 +98,9 @@ export default function AdminDashboardScreen({ onLogout }: Props) {
       setRides(ridesData);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load dashboard stats");
+      setStatsError(
+        "Admin data requires a special connection. Please reload the page and try again.",
+      );
     } finally {
       setStatsLoading(false);
     }
@@ -216,6 +221,45 @@ export default function AdminDashboardScreen({ onLogout }: Props) {
                   />
                 ))}
               </div>
+            ) : statsError ? (
+              <motion.div
+                data-ocid="admin_dashboard.error_state"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl p-4 mb-6 flex items-start gap-3"
+                style={{
+                  background: "oklch(0.63 0.22 27 / 10%)",
+                  border: "1px solid oklch(0.63 0.22 27 / 30%)",
+                }}
+              >
+                <AlertTriangle
+                  size={18}
+                  className="flex-shrink-0 mt-0.5"
+                  style={{ color: "oklch(0.75 0.16 27)" }}
+                />
+                <div>
+                  <p
+                    className="text-sm font-semibold mb-1"
+                    style={{ color: "oklch(0.75 0.16 27)" }}
+                  >
+                    Stats unavailable
+                  </p>
+                  <p
+                    className="text-xs leading-relaxed"
+                    style={{ color: "oklch(0.55 0.03 265)" }}
+                  >
+                    {statsError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={fetchStats}
+                    className="mt-2 text-xs font-semibold underline"
+                    style={{ color: "oklch(0.72 0.18 260)" }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              </motion.div>
             ) : (
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <StatCard

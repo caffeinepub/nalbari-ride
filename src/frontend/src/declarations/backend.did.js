@@ -40,6 +40,12 @@ export const UserProfile = IDL.Record({
   'role' : IDL.Text,
   'phone' : IDL.Text,
 });
+export const RideCustomerRequest = IDL.Record({
+  'destination' : IDL.Text,
+  'source' : IDL.Text,
+  'name' : IDL.Text,
+  'phone' : IDL.Text,
+});
 export const RiderProfile = IDL.Record({
   'status' : IDL.Text,
   'name' : IDL.Text,
@@ -77,6 +83,7 @@ export const idlService = IDL.Service({
   'getAllRides' : IDL.Func([], [IDL.Vec(Ride)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+  'getDemoCustomers' : IDL.Func([], [IDL.Vec(RideCustomerRequest)], ['query']),
   'getPendingRides' : IDL.Func([], [IDL.Vec(Ride)], ['query']),
   'getRideById' : IDL.Func([IDL.Nat], [IDL.Opt(Ride)], ['query']),
   'getRiderDetails' : IDL.Func([IDL.Text], [IDL.Opt(RiderDetails)], ['query']),
@@ -139,6 +146,12 @@ export const idlFactory = ({ IDL }) => {
     'role' : IDL.Text,
     'phone' : IDL.Text,
   });
+  const RideCustomerRequest = IDL.Record({
+    'destination' : IDL.Text,
+    'source' : IDL.Text,
+    'name' : IDL.Text,
+    'phone' : IDL.Text,
+  });
   const RiderProfile = IDL.Record({
     'status' : IDL.Text,
     'name' : IDL.Text,
@@ -180,6 +193,11 @@ export const idlFactory = ({ IDL }) => {
     'getAllRides' : IDL.Func([], [IDL.Vec(Ride)], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+    'getDemoCustomers' : IDL.Func(
+        [],
+        [IDL.Vec(RideCustomerRequest)],
+        ['query'],
+      ),
     'getPendingRides' : IDL.Func([], [IDL.Vec(Ride)], ['query']),
     'getRideById' : IDL.Func([IDL.Nat], [IDL.Opt(Ride)], ['query']),
     'getRiderDetails' : IDL.Func(

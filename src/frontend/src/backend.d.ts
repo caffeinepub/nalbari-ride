@@ -7,14 +7,11 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export interface RiderDetails {
-    licenceNumber: string;
-    accountStatus: string;
-    bikeNumber: string;
+export interface RideCustomerRequest {
+    destination: string;
+    source: string;
     name: string;
-    aadhaarNumber: string;
     phone: string;
-    verificationStatus: string;
 }
 export interface Ride {
     id: bigint;
@@ -35,14 +32,23 @@ export interface RiderProfile {
     totalEarnings: bigint;
     phone: string;
 }
-export interface UserProfile {
+export interface User {
+    id: bigint;
+    password: string;
     name: string;
     role: string;
     phone: string;
 }
-export interface User {
-    id: bigint;
-    password: string;
+export interface RiderDetails {
+    licenceNumber: string;
+    accountStatus: string;
+    bikeNumber: string;
+    name: string;
+    aadhaarNumber: string;
+    phone: string;
+    verificationStatus: string;
+}
+export interface UserProfile {
     name: string;
     role: string;
     phone: string;
@@ -66,6 +72,7 @@ export interface backendInterface {
     getAllRides(): Promise<Array<Ride>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
+    getDemoCustomers(): Promise<Array<RideCustomerRequest>>;
     getPendingRides(): Promise<Array<Ride>>;
     getRideById(rideId: bigint): Promise<Ride | null>;
     getRiderDetails(phone: string): Promise<RiderDetails | null>;

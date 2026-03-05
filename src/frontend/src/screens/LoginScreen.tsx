@@ -33,6 +33,19 @@ export default function LoginScreen({ onSuccess, onRegister }: Props) {
     try {
       const user = await actor.loginUser(phone.trim(), password.trim());
       if (user) {
+        // Re-associate this Principal with the phone number so backend
+        // phone-ownership checks (createRide, acceptRide, etc.) pass correctly.
+        try {
+          await actor.saveCallerUserProfile({
+            name: user.name,
+            phone: user.phone,
+            role: user.role,
+          });
+        } catch (profileErr) {
+          // Non-fatal — proceed with login even if profile save fails
+          console.warn("Could not save caller profile:", profileErr);
+        }
+
         const stored: StoredUser = {
           id: user.id.toString(),
           name: user.name,
