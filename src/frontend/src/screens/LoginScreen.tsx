@@ -11,9 +11,14 @@ import type { StoredUser } from "../types";
 interface Props {
   onSuccess: (user: StoredUser) => void;
   onRegister: () => void;
+  onForgotPassword: () => void;
 }
 
-export default function LoginScreen({ onSuccess, onRegister }: Props) {
+export default function LoginScreen({
+  onSuccess,
+  onRegister,
+  onForgotPassword,
+}: Props) {
   const { actor } = useActor();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -132,6 +137,16 @@ export default function LoginScreen({ onSuccess, onRegister }: Props) {
               onKeyDown={(e) => e.key === "Enter" && handleLogin()}
               className="h-13 rounded-xl bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-primary"
             />
+            <div className="flex justify-end mt-0.5">
+              <button
+                type="button"
+                data-ocid="login.forgot_password_button"
+                onClick={onForgotPassword}
+                className="text-xs text-muted-foreground hover:text-brand transition-colors font-medium"
+              >
+                Forgot password?
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>

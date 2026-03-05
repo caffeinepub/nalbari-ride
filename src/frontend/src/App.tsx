@@ -4,6 +4,7 @@ import AdminDashboardScreen from "./screens/AdminDashboardScreen";
 import AdminLoginScreen from "./screens/AdminLoginScreen";
 import CustomerHomeScreen from "./screens/CustomerHomeScreen";
 import CustomerRideStatusScreen from "./screens/CustomerRideStatusScreen";
+import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
 import LandingPage from "./screens/LandingPage";
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
@@ -113,7 +114,12 @@ export default function App() {
           <LoginScreen
             onSuccess={login}
             onRegister={() => navigate("register")}
+            onForgotPassword={() => navigate("forgot_password")}
           />
+        )}
+
+        {screen === "forgot_password" && (
+          <ForgotPasswordScreen onBack={() => navigate("login")} />
         )}
 
         {screen === "customer_home" && currentUser && (

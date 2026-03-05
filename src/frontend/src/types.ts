@@ -5,6 +5,7 @@ export type Screen =
   | "role_select"
   | "register"
   | "login"
+  | "forgot_password"
   | "customer_home"
   | "customer_ride_status"
   | "rider_home"
