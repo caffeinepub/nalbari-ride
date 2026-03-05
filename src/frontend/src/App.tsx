@@ -1,7 +1,10 @@
 import { Toaster } from "@/components/ui/sonner";
 import { useEffect, useState } from "react";
+import AdminDashboardScreen from "./screens/AdminDashboardScreen";
+import AdminLoginScreen from "./screens/AdminLoginScreen";
 import CustomerHomeScreen from "./screens/CustomerHomeScreen";
 import CustomerRideStatusScreen from "./screens/CustomerRideStatusScreen";
+import LandingPage from "./screens/LandingPage";
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
 import RiderCompletedScreen from "./screens/RiderCompletedScreen";
@@ -12,9 +15,10 @@ import RoleSelectScreen from "./screens/RoleSelectScreen";
 import type { Screen, StoredUser } from "./types";
 
 const STORAGE_KEY = "nalbari_ride_user";
+const ADMIN_SESSION_KEY = "nalbari_admin_session";
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("role_select");
+  const [screen, setScreen] = useState<Screen>("landing");
   const [selectedRole, setSelectedRole] = useState<"customer" | "rider">(
     "customer",
   );
@@ -24,6 +28,13 @@ export default function App() {
 
   // On mount, check for stored session
   useEffect(() => {
+    // Check for admin session first
+    const adminSession = localStorage.getItem(ADMIN_SESSION_KEY);
+    if (adminSession === "true") {
+      setScreen("admin_dashboard");
+      return;
+    }
+
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
@@ -32,9 +43,15 @@ export default function App() {
         setScreen(user.role === "customer" ? "customer_home" : "rider_home");
       } catch {
         localStorage.removeItem(STORAGE_KEY);
+        setScreen("landing");
       }
     }
   }, []);
+
+  const adminLogout = () => {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+    setScreen("landing");
+  };
 
   const login = (user: StoredUser) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
@@ -45,7 +62,7 @@ export default function App() {
   const logout = () => {
     localStorage.removeItem(STORAGE_KEY);
     setCurrentUser(null);
-    setScreen("role_select");
+    setScreen("landing");
     setLastRideId(null);
   };
 
@@ -53,7 +70,24 @@ export default function App() {
 
   return (
     <div className="min-h-dvh bg-background flex items-start justify-center">
-      <div className="app-shell brand-gradient">
+      <div
+        className={screen === "landing" ? "w-full" : "app-shell brand-gradient"}
+      >
+        {screen === "landing" && (
+          <LandingPage
+            currentUser={currentUser}
+            onBecomeRider={() => {
+              setSelectedRole("rider");
+              navigate("role_select");
+            }}
+            onNavigate={navigate}
+            onRideCreated={(rideId) => {
+              setLastRideId(rideId);
+              navigate("customer_ride_status");
+            }}
+          />
+        )}
+
         {screen === "role_select" && (
           <RoleSelectScreen
             onSelectRole={(role) => {
@@ -135,6 +169,23 @@ export default function App() {
           />
         )}
       </div>
+
+      {/* Admin screens (full-width, outside app-shell) */}
+      {screen === "admin_login" && (
+        <div className="app-shell brand-gradient">
+          <AdminLoginScreen
+            onSuccess={() => navigate("admin_dashboard")}
+            onBack={() => navigate("landing")}
+          />
+        </div>
+      )}
+
+      {screen === "admin_dashboard" && (
+        <div className="w-full max-w-[430px] mx-auto min-h-dvh">
+          <AdminDashboardScreen onLogout={adminLogout} />
+        </div>
+      )}
+
       <Toaster position="top-center" richColors />
     </div>
   );

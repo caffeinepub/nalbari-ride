@@ -89,6 +89,15 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface RiderDetails {
+    licenceNumber: string;
+    accountStatus: string;
+    bikeNumber: string;
+    name: string;
+    aadhaarNumber: string;
+    phone: string;
+    verificationStatus: string;
+}
 export interface Ride {
     id: bigint;
     customerName: string;
@@ -108,6 +117,11 @@ export interface RiderProfile {
     totalEarnings: bigint;
     phone: string;
 }
+export interface UserProfile {
+    name: string;
+    role: string;
+    phone: string;
+}
 export interface User {
     id: bigint;
     password: string;
@@ -115,23 +129,57 @@ export interface User {
     role: string;
     phone: string;
 }
+export enum UserRole {
+    admin = "admin",
+    user = "user",
+    guest = "guest"
+}
 export interface backendInterface {
+    _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     acceptRide(rideId: bigint, driverPhone: string, driverName: string, bikeNumber: string): Promise<string>;
+    activateRider(phone: string): Promise<string>;
+    adminLogin(password: string): Promise<boolean>;
+    assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     cancelRide(rideId: bigint): Promise<string>;
     completeRide(rideId: bigint, driverPhone: string): Promise<string>;
     createRide(customerPhone: string, customerName: string, pickup: string, drop: string, fare: bigint): Promise<Ride>;
     getActiveRideForCustomer(customerPhone: string): Promise<Ride | null>;
     getActiveRideForRider(driverPhone: string): Promise<Ride | null>;
+    getAllRiders(): Promise<Array<RiderDetails>>;
+    getAllRides(): Promise<Array<Ride>>;
+    getCallerUserProfile(): Promise<UserProfile | null>;
+    getCallerUserRole(): Promise<UserRole>;
     getPendingRides(): Promise<Array<Ride>>;
     getRideById(rideId: bigint): Promise<Ride | null>;
+    getRiderDetails(phone: string): Promise<RiderDetails | null>;
     getRiderProfile(phone: string): Promise<RiderProfile>;
+    getUserProfile(user: Principal): Promise<UserProfile | null>;
+    isCallerAdmin(): Promise<boolean>;
     loginUser(phone: string, password: string): Promise<User | null>;
+    registerRider(phone: string, name: string, licenceNumber: string, aadhaarNumber: string, bikeNumber: string): Promise<string>;
     registerUser(name: string, phone: string, password: string, role: string): Promise<string>;
+    saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setRiderStatus(phone: string, status: string): Promise<string>;
+    suspendRider(phone: string): Promise<string>;
+    verifyRider(phone: string, verificationStatus: string): Promise<string>;
 }
-import type { Ride as _Ride, User as _User } from "./declarations/backend.did.d.ts";
+import type { Ride as _Ride, RiderDetails as _RiderDetails, User as _User, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
+    async _initializeAccessControlWithSecret(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor._initializeAccessControlWithSecret(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor._initializeAccessControlWithSecret(arg0);
+            return result;
+        }
+    }
     async acceptRide(arg0: bigint, arg1: string, arg2: string, arg3: string): Promise<string> {
         if (this.processError) {
             try {
@@ -143,6 +191,48 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.acceptRide(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async activateRider(arg0: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.activateRider(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.activateRider(arg0);
+            return result;
+        }
+    }
+    async adminLogin(arg0: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminLogin(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminLogin(arg0);
+            return result;
+        }
+    }
+    async assignCallerUserRole(arg0: Principal, arg1: UserRole): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n1(this._uploadFile, this._downloadFile, arg1));
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n1(this._uploadFile, this._downloadFile, arg1));
             return result;
         }
     }
@@ -178,70 +268,140 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.createRide(arg0, arg1, arg2, arg3, arg4);
-                return from_candid_Ride_n1(this._uploadFile, this._downloadFile, result);
+                return from_candid_Ride_n3(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.createRide(arg0, arg1, arg2, arg3, arg4);
-            return from_candid_Ride_n1(this._uploadFile, this._downloadFile, result);
+            return from_candid_Ride_n3(this._uploadFile, this._downloadFile, result);
         }
     }
     async getActiveRideForCustomer(arg0: string): Promise<Ride | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getActiveRideForCustomer(arg0);
-                return from_candid_opt_n4(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getActiveRideForCustomer(arg0);
-            return from_candid_opt_n4(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
         }
     }
     async getActiveRideForRider(arg0: string): Promise<Ride | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getActiveRideForRider(arg0);
-                return from_candid_opt_n4(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getActiveRideForRider(arg0);
-            return from_candid_opt_n4(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getAllRiders(): Promise<Array<RiderDetails>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllRiders();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllRiders();
+            return result;
+        }
+    }
+    async getAllRides(): Promise<Array<Ride>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllRides();
+                return from_candid_vec_n7(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllRides();
+            return from_candid_vec_n7(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getCallerUserProfile(): Promise<UserProfile | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getCallerUserProfile();
+                return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getCallerUserProfile();
+            return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getCallerUserRole(): Promise<UserRole> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getCallerUserRole();
+                return from_candid_UserRole_n9(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getCallerUserRole();
+            return from_candid_UserRole_n9(this._uploadFile, this._downloadFile, result);
         }
     }
     async getPendingRides(): Promise<Array<Ride>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getPendingRides();
-                return from_candid_vec_n5(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n7(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getPendingRides();
-            return from_candid_vec_n5(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n7(this._uploadFile, this._downloadFile, result);
         }
     }
     async getRideById(arg0: bigint): Promise<Ride | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getRideById(arg0);
-                return from_candid_opt_n4(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getRideById(arg0);
-            return from_candid_opt_n4(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getRiderDetails(arg0: string): Promise<RiderDetails | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getRiderDetails(arg0);
+                return from_candid_opt_n11(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getRiderDetails(arg0);
+            return from_candid_opt_n11(this._uploadFile, this._downloadFile, result);
         }
     }
     async getRiderProfile(arg0: string): Promise<RiderProfile> {
@@ -258,18 +418,60 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getUserProfile(arg0: Principal): Promise<UserProfile | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getUserProfile(arg0);
+                return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getUserProfile(arg0);
+            return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async isCallerAdmin(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.isCallerAdmin();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.isCallerAdmin();
+            return result;
+        }
+    }
     async loginUser(arg0: string, arg1: string): Promise<User | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.loginUser(arg0, arg1);
-                return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n12(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.loginUser(arg0, arg1);
-            return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n12(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async registerRider(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.registerRider(arg0, arg1, arg2, arg3, arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.registerRider(arg0, arg1, arg2, arg3, arg4);
+            return result;
         }
     }
     async registerUser(arg0: string, arg1: string, arg2: string, arg3: string): Promise<string> {
@@ -283,6 +485,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.registerUser(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async saveCallerUserProfile(arg0: UserProfile): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.saveCallerUserProfile(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.saveCallerUserProfile(arg0);
             return result;
         }
     }
@@ -300,20 +516,57 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async suspendRider(arg0: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.suspendRider(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.suspendRider(arg0);
+            return result;
+        }
+    }
+    async verifyRider(arg0: string, arg1: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.verifyRider(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.verifyRider(arg0, arg1);
+            return result;
+        }
+    }
 }
-function from_candid_Ride_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Ride): Ride {
-    return from_candid_record_n2(_uploadFile, _downloadFile, value);
+function from_candid_Ride_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Ride): Ride {
+    return from_candid_record_n4(_uploadFile, _downloadFile, value);
 }
-function from_candid_opt_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
+function from_candid_UserRole_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
+    return from_candid_variant_n10(_uploadFile, _downloadFile, value);
+}
+function from_candid_opt_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_RiderDetails]): RiderDetails | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Ride]): Ride | null {
-    return value.length === 0 ? null : from_candid_Ride_n1(_uploadFile, _downloadFile, value[0]);
-}
-function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_User]): User | null {
+function from_candid_opt_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_User]): User | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_record_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_opt_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Ride]): Ride | null {
+    return value.length === 0 ? null : from_candid_Ride_n3(_uploadFile, _downloadFile, value[0]);
+}
+function from_candid_opt_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_record_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: bigint;
     customerName: string;
     status: string;
@@ -342,18 +595,45 @@ function from_candid_record_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint
         id: value.id,
         customerName: value.customerName,
         status: value.status,
-        driverPhone: record_opt_to_undefined(from_candid_opt_n3(_uploadFile, _downloadFile, value.driverPhone)),
+        driverPhone: record_opt_to_undefined(from_candid_opt_n5(_uploadFile, _downloadFile, value.driverPhone)),
         customerPhone: value.customerPhone,
         drop: value.drop,
         fare: value.fare,
-        bikeNumber: record_opt_to_undefined(from_candid_opt_n3(_uploadFile, _downloadFile, value.bikeNumber)),
+        bikeNumber: record_opt_to_undefined(from_candid_opt_n5(_uploadFile, _downloadFile, value.bikeNumber)),
         createdAt: value.createdAt,
         pickup: value.pickup,
-        driverName: record_opt_to_undefined(from_candid_opt_n3(_uploadFile, _downloadFile, value.driverName))
+        driverName: record_opt_to_undefined(from_candid_opt_n5(_uploadFile, _downloadFile, value.driverName))
     };
 }
-function from_candid_vec_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Ride>): Array<Ride> {
-    return value.map((x)=>from_candid_Ride_n1(_uploadFile, _downloadFile, x));
+function from_candid_variant_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    admin: null;
+} | {
+    user: null;
+} | {
+    guest: null;
+}): UserRole {
+    return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
+}
+function from_candid_vec_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Ride>): Array<Ride> {
+    return value.map((x)=>from_candid_Ride_n3(_uploadFile, _downloadFile, x));
+}
+function to_candid_UserRole_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
+    return to_candid_variant_n2(_uploadFile, _downloadFile, value);
+}
+function to_candid_variant_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
+    admin: null;
+} | {
+    user: null;
+} | {
+    guest: null;
+} {
+    return value == UserRole.admin ? {
+        admin: null
+    } : value == UserRole.user ? {
+        user: null
+    } : value == UserRole.guest ? {
+        guest: null
+    } : value;
 }
 export interface CreateActorOptions {
     agent?: Agent;

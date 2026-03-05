@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../hooks/useActor";
-import { FIXED_FARE, type StoredUser } from "../types";
+import { FIXED_FARE, MAX_FARE, type StoredUser } from "../types";
 
 interface Props {
   user: StoredUser;
@@ -99,16 +99,16 @@ export default function CustomerHomeScreen({
           }}
         />
         <p className="text-primary-foreground/80 text-sm font-medium relative z-10">
-          Flat rate anywhere
+          Fare by distance
         </p>
         <div className="flex items-baseline gap-1 mt-1 relative z-10">
           <IndianRupee size={28} className="text-primary-foreground" />
           <span className="font-display text-5xl font-extrabold text-primary-foreground">
-            {FIXED_FARE.toString()}
+            {FIXED_FARE.toString()}–{MAX_FARE.toString()}
           </span>
         </div>
         <p className="text-primary-foreground/70 text-xs mt-2 relative z-10">
-          Base ₹20 + 5 km × ₹8
+          Base ₹20 + ₹3/km · 5–10 km range
         </p>
       </motion.div>
 
@@ -178,7 +178,7 @@ export default function CustomerHomeScreen({
         <div className="flex items-center justify-between px-1 py-2 rounded-xl bg-secondary/50">
           <span className="text-muted-foreground text-sm">Estimated fare</span>
           <span className="font-bold text-brand text-base">
-            ₹{FIXED_FARE.toString()}
+            ₹{FIXED_FARE.toString()}–₹{MAX_FARE.toString()}
           </span>
         </div>
       </motion.div>

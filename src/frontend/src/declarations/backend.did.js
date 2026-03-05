@@ -8,6 +8,11 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
+});
 export const Ride = IDL.Record({
   'id' : IDL.Nat,
   'customerName' : IDL.Text,
@@ -20,6 +25,20 @@ export const Ride = IDL.Record({
   'createdAt' : IDL.Int,
   'pickup' : IDL.Text,
   'driverName' : IDL.Opt(IDL.Text),
+});
+export const RiderDetails = IDL.Record({
+  'licenceNumber' : IDL.Text,
+  'accountStatus' : IDL.Text,
+  'bikeNumber' : IDL.Text,
+  'name' : IDL.Text,
+  'aadhaarNumber' : IDL.Text,
+  'phone' : IDL.Text,
+  'verificationStatus' : IDL.Text,
+});
+export const UserProfile = IDL.Record({
+  'name' : IDL.Text,
+  'role' : IDL.Text,
+  'phone' : IDL.Text,
 });
 export const RiderProfile = IDL.Record({
   'status' : IDL.Text,
@@ -36,11 +55,15 @@ export const User = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'acceptRide' : IDL.Func(
       [IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Text],
       [],
     ),
+  'activateRider' : IDL.Func([IDL.Text], [IDL.Text], []),
+  'adminLogin' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
+  'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'cancelRide' : IDL.Func([IDL.Nat], [IDL.Text], []),
   'completeRide' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Text], []),
   'createRide' : IDL.Func(
@@ -50,21 +73,45 @@ export const idlService = IDL.Service({
     ),
   'getActiveRideForCustomer' : IDL.Func([IDL.Text], [IDL.Opt(Ride)], ['query']),
   'getActiveRideForRider' : IDL.Func([IDL.Text], [IDL.Opt(Ride)], ['query']),
+  'getAllRiders' : IDL.Func([], [IDL.Vec(RiderDetails)], ['query']),
+  'getAllRides' : IDL.Func([], [IDL.Vec(Ride)], ['query']),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getPendingRides' : IDL.Func([], [IDL.Vec(Ride)], ['query']),
   'getRideById' : IDL.Func([IDL.Nat], [IDL.Opt(Ride)], ['query']),
+  'getRiderDetails' : IDL.Func([IDL.Text], [IDL.Opt(RiderDetails)], ['query']),
   'getRiderProfile' : IDL.Func([IDL.Text], [RiderProfile], []),
+  'getUserProfile' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Opt(UserProfile)],
+      ['query'],
+    ),
+  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'loginUser' : IDL.Func([IDL.Text, IDL.Text], [IDL.Opt(User)], ['query']),
+  'registerRider' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Text],
+      [],
+    ),
   'registerUser' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Text],
       [],
     ),
+  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'setRiderStatus' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+  'suspendRider' : IDL.Func([IDL.Text], [IDL.Text], []),
+  'verifyRider' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
+  });
   const Ride = IDL.Record({
     'id' : IDL.Nat,
     'customerName' : IDL.Text,
@@ -77,6 +124,20 @@ export const idlFactory = ({ IDL }) => {
     'createdAt' : IDL.Int,
     'pickup' : IDL.Text,
     'driverName' : IDL.Opt(IDL.Text),
+  });
+  const RiderDetails = IDL.Record({
+    'licenceNumber' : IDL.Text,
+    'accountStatus' : IDL.Text,
+    'bikeNumber' : IDL.Text,
+    'name' : IDL.Text,
+    'aadhaarNumber' : IDL.Text,
+    'phone' : IDL.Text,
+    'verificationStatus' : IDL.Text,
+  });
+  const UserProfile = IDL.Record({
+    'name' : IDL.Text,
+    'role' : IDL.Text,
+    'phone' : IDL.Text,
   });
   const RiderProfile = IDL.Record({
     'status' : IDL.Text,
@@ -93,11 +154,15 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'acceptRide' : IDL.Func(
         [IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Text],
         [],
       ),
+    'activateRider' : IDL.Func([IDL.Text], [IDL.Text], []),
+    'adminLogin' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
+    'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'cancelRide' : IDL.Func([IDL.Nat], [IDL.Text], []),
     'completeRide' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Text], []),
     'createRide' : IDL.Func(
@@ -111,16 +176,39 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getActiveRideForRider' : IDL.Func([IDL.Text], [IDL.Opt(Ride)], ['query']),
+    'getAllRiders' : IDL.Func([], [IDL.Vec(RiderDetails)], ['query']),
+    'getAllRides' : IDL.Func([], [IDL.Vec(Ride)], ['query']),
+    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getPendingRides' : IDL.Func([], [IDL.Vec(Ride)], ['query']),
     'getRideById' : IDL.Func([IDL.Nat], [IDL.Opt(Ride)], ['query']),
+    'getRiderDetails' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(RiderDetails)],
+        ['query'],
+      ),
     'getRiderProfile' : IDL.Func([IDL.Text], [RiderProfile], []),
+    'getUserProfile' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
+    'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'loginUser' : IDL.Func([IDL.Text, IDL.Text], [IDL.Opt(User)], ['query']),
+    'registerRider' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Text],
+        [],
+      ),
     'registerUser' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Text],
         [],
       ),
+    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'setRiderStatus' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+    'suspendRider' : IDL.Func([IDL.Text], [IDL.Text], []),
+    'verifyRider' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   });
 };
 

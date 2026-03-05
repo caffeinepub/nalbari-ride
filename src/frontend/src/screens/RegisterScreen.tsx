@@ -19,6 +19,9 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [licenceNumber, setLicenceNumber] = useState("");
+  const [aadhaarNumber, setAadhaarNumber] = useState("");
+  const [bikeNumber, setBikeNumber] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
@@ -29,6 +32,23 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
     if (phone.length < 10) {
       toast.error("Enter a valid 10-digit phone number");
       return;
+    }
+    if (role === "rider") {
+      if (!licenceNumber.trim()) {
+        toast.error("Please enter your Driving Licence Number");
+        return;
+      }
+      if (
+        !aadhaarNumber.trim() ||
+        aadhaarNumber.replace(/\D/g, "").length !== 12
+      ) {
+        toast.error("Please enter a valid 12-digit Aadhaar Number");
+        return;
+      }
+      if (!bikeNumber.trim()) {
+        toast.error("Please enter your Bike Number");
+        return;
+      }
     }
     if (!actor) {
       toast.error("Connection not ready. Please wait.");
@@ -44,20 +64,32 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
         role,
       );
       if (
-        result.toLowerCase().includes("success") ||
-        result.toLowerCase().includes("registered")
-      ) {
-        toast.success("Account created! Please login.");
-        onSuccess();
-      } else if (
         result.toLowerCase().includes("already") ||
         result.toLowerCase().includes("exists")
       ) {
         toast.error("Phone number already registered. Please login.");
-      } else {
-        toast.success("Account created! Please login.");
-        onSuccess();
+        setLoading(false);
+        return;
       }
+
+      // Also register rider details if role is rider
+      if (role === "rider") {
+        try {
+          await actor.registerRider(
+            phone.trim(),
+            name.trim(),
+            licenceNumber.trim(),
+            aadhaarNumber.trim(),
+            bikeNumber.trim(),
+          );
+        } catch (riderErr) {
+          console.error("Rider registration error:", riderErr);
+          // Continue anyway — user account created
+        }
+      }
+
+      toast.success("Account created! Please login.");
+      onSuccess();
     } catch (err) {
       console.error(err);
       toast.error("Registration failed. Please try again.");
@@ -176,6 +208,85 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
               className="h-13 rounded-xl bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-primary"
             />
           </div>
+
+          {/* Rider-specific fields */}
+          {role === "rider" && (
+            <>
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                style={{
+                  background: "oklch(0.78 0.17 142 / 8%)",
+                  border: "1px solid oklch(0.78 0.17 142 / 20%)",
+                }}
+              >
+                <Bike size={14} style={{ color: "oklch(0.78 0.17 142)" }} />
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: "oklch(0.78 0.17 142)" }}
+                >
+                  Rider Verification Details
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="reg-licence"
+                  className="text-foreground/80 text-sm font-medium"
+                >
+                  Driving Licence Number
+                </Label>
+                <Input
+                  id="reg-licence"
+                  data-ocid="register.licence_input"
+                  placeholder="e.g. AS-DL-1234567890"
+                  value={licenceNumber}
+                  onChange={(e) =>
+                    setLicenceNumber(e.target.value.toUpperCase())
+                  }
+                  className="h-13 rounded-xl bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-primary font-mono"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="reg-aadhaar"
+                  className="text-foreground/80 text-sm font-medium"
+                >
+                  Aadhaar Number
+                </Label>
+                <Input
+                  id="reg-aadhaar"
+                  data-ocid="register.aadhaar_input"
+                  placeholder="12-digit Aadhaar number"
+                  value={aadhaarNumber}
+                  onChange={(e) =>
+                    setAadhaarNumber(
+                      e.target.value.replace(/\D/g, "").slice(0, 12),
+                    )
+                  }
+                  inputMode="numeric"
+                  className="h-13 rounded-xl bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-primary font-mono"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="reg-bike"
+                  className="text-foreground/80 text-sm font-medium"
+                >
+                  Bike Number
+                </Label>
+                <Input
+                  id="reg-bike"
+                  data-ocid="register.bike_input"
+                  placeholder="e.g. AS-01-AB-1234"
+                  value={bikeNumber}
+                  onChange={(e) => setBikeNumber(e.target.value.toUpperCase())}
+                  className="h-13 rounded-xl bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-primary font-mono"
+                />
+              </div>
+            </>
+          )}
         </div>
       </motion.div>
 

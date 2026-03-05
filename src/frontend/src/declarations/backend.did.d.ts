@@ -23,6 +23,15 @@ export interface Ride {
   'pickup' : string,
   'driverName' : [] | [string],
 }
+export interface RiderDetails {
+  'licenceNumber' : string,
+  'accountStatus' : string,
+  'bikeNumber' : string,
+  'name' : string,
+  'aadhaarNumber' : string,
+  'phone' : string,
+  'verificationStatus' : string,
+}
 export interface RiderProfile {
   'status' : string,
   'name' : string,
@@ -36,19 +45,45 @@ export interface User {
   'role' : string,
   'phone' : string,
 }
+export interface UserProfile {
+  'name' : string,
+  'role' : string,
+  'phone' : string,
+}
+export type UserRole = { 'admin' : null } |
+  { 'user' : null } |
+  { 'guest' : null };
 export interface _SERVICE {
+  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'acceptRide' : ActorMethod<[bigint, string, string, string], string>,
+  'activateRider' : ActorMethod<[string], string>,
+  'adminLogin' : ActorMethod<[string], boolean>,
+  'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'cancelRide' : ActorMethod<[bigint], string>,
   'completeRide' : ActorMethod<[bigint, string], string>,
   'createRide' : ActorMethod<[string, string, string, string, bigint], Ride>,
   'getActiveRideForCustomer' : ActorMethod<[string], [] | [Ride]>,
   'getActiveRideForRider' : ActorMethod<[string], [] | [Ride]>,
+  'getAllRiders' : ActorMethod<[], Array<RiderDetails>>,
+  'getAllRides' : ActorMethod<[], Array<Ride>>,
+  'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
+  'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getPendingRides' : ActorMethod<[], Array<Ride>>,
   'getRideById' : ActorMethod<[bigint], [] | [Ride]>,
+  'getRiderDetails' : ActorMethod<[string], [] | [RiderDetails]>,
   'getRiderProfile' : ActorMethod<[string], RiderProfile>,
+  'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'isCallerAdmin' : ActorMethod<[], boolean>,
   'loginUser' : ActorMethod<[string, string], [] | [User]>,
+  'registerRider' : ActorMethod<
+    [string, string, string, string, string],
+    string
+  >,
   'registerUser' : ActorMethod<[string, string, string, string], string>,
+  'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'setRiderStatus' : ActorMethod<[string, string], string>,
+  'suspendRider' : ActorMethod<[string], string>,
+  'verifyRider' : ActorMethod<[string, string], string>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

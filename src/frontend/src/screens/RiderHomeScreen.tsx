@@ -1,11 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Bike, IndianRupee, LogOut, TrendingUp } from "lucide-react";
+import {
+  AlertTriangle,
+  Bike,
+  IndianRupee,
+  LogOut,
+  Phone,
+  TrendingUp,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { RiderProfile } from "../backend.d";
+import type { RiderDetails, RiderProfile } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 import type { StoredUser } from "../types";
 
@@ -22,14 +29,19 @@ export default function RiderHomeScreen({
 }: Props) {
   const { actor } = useActor();
   const [profile, setProfile] = useState<RiderProfile | null>(null);
+  const [riderDetails, setRiderDetails] = useState<RiderDetails | null>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [toggling, setToggling] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (!actor) return;
     try {
-      const p = await actor.getRiderProfile(user.phone);
+      const [p, details] = await Promise.all([
+        actor.getRiderProfile(user.phone),
+        actor.getRiderDetails(user.phone),
+      ]);
       setProfile(p);
+      setRiderDetails(details);
       setIsOnline(p.status === "online");
     } catch (err) {
       console.error("Profile fetch error:", err);
@@ -39,6 +51,82 @@ export default function RiderHomeScreen({
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  // Show suspension notice if rider is suspended
+  if (riderDetails && riderDetails.accountStatus === "suspended") {
+    return (
+      <div
+        data-ocid="rider_home.suspended_state"
+        className="screen-fill px-6 pt-12 pb-10 flex flex-col items-center justify-center"
+        style={{ background: "oklch(0.11 0.01 265)" }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col items-center text-center gap-5"
+        >
+          {/* Red warning icon */}
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center"
+            style={{
+              background: "oklch(0.63 0.22 27 / 15%)",
+              border: "2px solid oklch(0.63 0.22 27 / 35%)",
+              boxShadow: "0 0 40px oklch(0.63 0.22 27 / 20%)",
+            }}
+          >
+            <AlertTriangle size={38} style={{ color: "oklch(0.75 0.16 27)" }} />
+          </div>
+
+          <div>
+            <h2
+              className="font-display text-2xl font-bold mb-3"
+              style={{ color: "oklch(0.75 0.16 27)" }}
+            >
+              Account Suspended
+            </h2>
+            <p
+              className="text-sm leading-relaxed max-w-xs"
+              style={{ color: "oklch(0.62 0.03 265)" }}
+            >
+              Your account has been suspended. Please contact Ride Nalbari
+              support.
+            </p>
+          </div>
+
+          <div
+            className="flex items-center gap-2 px-5 py-3 rounded-xl"
+            style={{
+              background: "oklch(0.17 0.015 265)",
+              border: "1px solid oklch(0.28 0.02 265)",
+            }}
+          >
+            <Phone size={16} style={{ color: "oklch(0.72 0.18 260)" }} />
+            <span
+              className="font-mono font-semibold text-sm"
+              style={{ color: "oklch(0.9 0.01 90)" }}
+            >
+              +91 96787 84288
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all"
+            style={{
+              background: "oklch(0.63 0.22 27 / 15%)",
+              border: "1px solid oklch(0.63 0.22 27 / 30%)",
+              color: "oklch(0.75 0.16 27)",
+            }}
+          >
+            <LogOut size={15} />
+            Logout
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   const handleToggle = async (checked: boolean) => {
     if (!actor) return;
