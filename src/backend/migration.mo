@@ -1,6 +1,4 @@
 import Map "mo:core/Map";
-import Principal "mo:core/Principal";
-import Text "mo:core/Text";
 import Nat "mo:core/Nat";
 
 module {
@@ -12,25 +10,74 @@ module {
     role : Text;
   };
 
+  type Ride = {
+    id : Nat;
+    customerPhone : Text;
+    customerName : Text;
+    pickup : Text;
+    drop : Text;
+    fare : Nat;
+    status : Text;
+    driverName : ?Text;
+    driverPhone : ?Text;
+    bikeNumber : ?Text;
+    createdAt : Int;
+  };
+
+  type RiderProfile = {
+    phone : Text;
+    name : Text;
+    status : Text;
+    totalEarnings : Nat;
+  };
+
+  type RiderDetails = {
+    phone : Text;
+    name : Text;
+    licenceNumber : Text;
+    aadhaarNumber : Text;
+    bikeNumber : Text;
+    accountStatus : Text;
+    verificationStatus : Text;
+  };
+
   type UserProfile = {
     name : Text;
     phone : Text;
     role : Text;
   };
 
-  type OldActor = {
-    users : Map.Map<Text, User>;
-    userProfiles : Map.Map<Principal, UserProfile>;
-    principalToPhone : Map.Map<Principal, Text>;
+  type RideCustomerRequest = {
+    name : Text;
+    phone : Text;
+    source : Text;
+    destination : Text;
   };
 
-  type NewActor = {
-    users : Map.Map<Text, User>;
-    userProfiles : Map.Map<Principal, UserProfile>;
-    principalToPhone : Map.Map<Principal, Text>;
+  type RideCustomerResponse = {
+    requestId : Text;
+    name : Text;
+    phone : Text;
+    source : Text;
+    destination : Text;
+    status : Text;
+    createdAt : Int;
+    updatedAt : Int;
   };
 
-  public func run(old : OldActor) : NewActor {
+  type Actor = {
+    users : Map.Map<Text, User>;
+    rides : Map.Map<Nat, Ride>;
+    riderProfiles : Map.Map<Text, RiderProfile>;
+    riderDetails : Map.Map<Text, RiderDetails>;
+    userProfiles : Map.Map<Principal, UserProfile>;
+    principalToPhone : Map.Map<Principal, Text>;
+    nextUserId : Nat;
+    nextRideId : Nat;
+    demoCustomers : Map.Map<Text, RideCustomerRequest>;
+  };
+
+  public func run(old : Actor) : Actor {
     old;
   };
 };
