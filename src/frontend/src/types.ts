@@ -21,9 +21,9 @@ export interface StoredUser {
   role: UserRole;
 }
 
-export const BASE_FARE = 20n;
-export const RATE_PER_KM = 3n; // Rs. 3 per km, 5-10km range = Rs. 35–50
-export const MIN_FARE = 20n; // short distance minimum
-export const MAX_FARE = 50n; // 10km max estimate
-export const FIXED_FARE = 35n; // midpoint estimate for bookings
+export const BASE_FARE = 15n;
+export const RATE_PER_KM = 3n; // Rs. 3 per km, 5km range = Rs. 15–30
+export const MIN_FARE = 15n; // short distance minimum
+export const MAX_FARE = 30n; // max estimate
+export const FIXED_FARE = 15n; // base fare for bookings
 export const BIKE_NUMBER = "AS-01-AB-1234";

@@ -444,7 +444,7 @@ export default function LandingPage({
                     color: "oklch(0.07 0.01 265)",
                   }}
                 >
-                  ₹20–₹50
+                  ₹15–₹30
                 </div>
                 <div
                   className="absolute -bottom-4 -left-8 px-3 py-1.5 rounded-full text-xs font-semibold"
@@ -1081,7 +1081,7 @@ export default function LandingPage({
               {
                 icon: Tag,
                 title: "Affordable Price",
-                desc: "Lowest fares in Nalbari, guaranteed. Just ₹20–₹50 with no hidden charges.",
+                desc: "Lowest fares in Nalbari, guaranteed. Just ₹15–₹30 with no hidden charges.",
                 delay: "landing-observe-delay-2",
               },
               {

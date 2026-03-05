@@ -1,18 +1,15 @@
 import Runtime "mo:core/Runtime";
-import Text "mo:core/Text";
 import Map "mo:core/Map";
 import Time "mo:core/Time";
-import List "mo:core/List";
-import Iter "mo:core/Iter";
 import Nat "mo:core/Nat";
 import Int "mo:core/Int";
 import Order "mo:core/Order";
 import Principal "mo:core/Principal";
-
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
+import Migration "migration";
 
-
+(with migration = Migration.run)
 actor {
   // Initialize access control
   let accessControlState = AccessControl.initState();
@@ -53,8 +50,8 @@ actor {
     licenceNumber : Text;
     aadhaarNumber : Text;
     bikeNumber : Text;
-    accountStatus : Text; // "active" or "suspended"
-    verificationStatus : Text; // "pending", "approved", "rejected"
+    accountStatus : Text;
+    verificationStatus : Text;
   };
 
   public type UserProfile = {
@@ -128,7 +125,6 @@ actor {
         users.add(phone, user);
         nextUserId += 1;
         
-        // Save user profile for the caller
         let profile : UserProfile = {
           name;
           phone;
@@ -148,15 +144,14 @@ actor {
       case (null) { null };
       case (?user) {
         if (user.password == password) {
-          // Check for rider role and account status
           if (user.role == "rider") {
             switch (riderDetails.get(phone)) {
               case (?details) {
                 if (details.accountStatus == "suspended") {
-                  return null; // Block login for suspended riders
+                  return null;
                 };
               };
-              case (null) { return null }; // No rider details found, block login
+              case (null) { return null };
             };
           };
           ?user;
@@ -167,9 +162,8 @@ actor {
     };
   };
 
-  // Admin Login
   public query ({ caller }) func adminLogin(password : Text) : async Bool {
-    password == "admin123";
+    password == "Faye@9394200176";
   };
 
   // Rider Registration and Management
@@ -276,7 +270,6 @@ actor {
   };
 
   public query ({ caller }) func getRiderDetails(phone : Text) : async ?RiderDetails {
-    // Allow users to view their own rider details, admins can view any
     switch (principalToPhone.get(caller)) {
       case (?callerPhone) {
         if (callerPhone != phone and not AccessControl.isAdmin(accessControlState, caller)) {
@@ -298,7 +291,6 @@ actor {
       Runtime.trap("Unauthorized: Only authenticated users can create rides");
     };
     
-    // Verify caller owns this phone number
     switch (principalToPhone.get(caller)) {
       case (?callerPhone) {
         if (callerPhone != customerPhone and not AccessControl.isAdmin(accessControlState, caller)) {
@@ -306,7 +298,6 @@ actor {
         };
       };
       case (null) {
-        // Allow if admin, otherwise trap
         if (not AccessControl.isAdmin(accessControlState, caller)) {
           Runtime.trap("Unauthorized: Phone number not associated with your account");
         };
@@ -343,7 +334,6 @@ actor {
       Runtime.trap("Unauthorized: Only authenticated users can accept rides");
     };
     
-    // Verify caller owns this driver phone number
     switch (principalToPhone.get(caller)) {
       case (?callerPhone) {
         if (callerPhone != driverPhone and not AccessControl.isAdmin(accessControlState, caller)) {
@@ -360,7 +350,6 @@ actor {
     switch (rides.get(rideId)) {
       case (null) { Runtime.trap("Ride not found") };
       case (?ride) {
-        // Check rider account status
         switch (riderDetails.get(driverPhone)) {
           case (null) { Runtime.trap("Rider details not found") };
           case (?details) {
@@ -397,7 +386,6 @@ actor {
       Runtime.trap("Unauthorized: Only authenticated users can complete rides");
     };
     
-    // Verify caller owns this driver phone number
     switch (principalToPhone.get(caller)) {
       case (?callerPhone) {
         if (callerPhone != driverPhone and not AccessControl.isAdmin(accessControlState, caller)) {
@@ -414,7 +402,6 @@ actor {
     switch (rides.get(rideId)) {
       case (null) { Runtime.trap("Ride not found") };
       case (?ride) {
-        // Verify the ride belongs to this driver
         switch (ride.driverPhone) {
           case (?rideDriverPhone) {
             if (rideDriverPhone != driverPhone) {
@@ -444,7 +431,6 @@ actor {
           };
           rides.add(rideId, updatedRide);
 
-          // update rider earnings
           switch (riderProfiles.get(driverPhone)) {
             case (null) { Runtime.trap("Rider profile not found") };
             case (?riderProfile) {
@@ -471,7 +457,6 @@ actor {
     switch (rides.get(rideId)) {
       case (null) { Runtime.trap("Ride not found") };
       case (?ride) {
-        // Verify caller is the customer or admin
         switch (principalToPhone.get(caller)) {
           case (?callerPhone) {
             if (callerPhone != ride.customerPhone and not AccessControl.isAdmin(accessControlState, caller)) {
@@ -508,7 +493,38 @@ actor {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only authenticated users can view rides");
     };
-    rides.get(rideId);
+    
+    switch (rides.get(rideId)) {
+      case (null) { null };
+      case (?ride) {
+        // Check if caller is involved in this ride or is admin
+        if (AccessControl.isAdmin(accessControlState, caller)) {
+          return ?ride;
+        };
+        
+        switch (principalToPhone.get(caller)) {
+          case (?callerPhone) {
+            // Check if caller is the customer
+            if (callerPhone == ride.customerPhone) {
+              return ?ride;
+            };
+            // Check if caller is the driver
+            switch (ride.driverPhone) {
+              case (?driverPhone) {
+                if (callerPhone == driverPhone) {
+                  return ?ride;
+                };
+              };
+              case (null) {};
+            };
+            Runtime.trap("Unauthorized: Can only view rides you are involved in");
+          };
+          case (null) {
+            Runtime.trap("Unauthorized: Phone number not associated with your account");
+          };
+        };
+      };
+    };
   };
 
   public query ({ caller }) func getActiveRideForCustomer(customerPhone : Text) : async ?Ride {
@@ -516,7 +532,6 @@ actor {
       Runtime.trap("Unauthorized: Only authenticated users can view rides");
     };
     
-    // Verify caller owns this phone number
     switch (principalToPhone.get(caller)) {
       case (?callerPhone) {
         if (callerPhone != customerPhone and not AccessControl.isAdmin(accessControlState, caller)) {
@@ -544,7 +559,6 @@ actor {
       Runtime.trap("Unauthorized: Only authenticated users can view rides");
     };
     
-    // Verify caller owns this phone number
     switch (principalToPhone.get(caller)) {
       case (?callerPhone) {
         if (callerPhone != driverPhone and not AccessControl.isAdmin(accessControlState, caller)) {
@@ -581,7 +595,6 @@ actor {
       Runtime.trap("Unauthorized: Only authenticated users can set rider status");
     };
     
-    // Verify caller owns this phone number
     switch (principalToPhone.get(caller)) {
       case (?callerPhone) {
         if (callerPhone != phone and not AccessControl.isAdmin(accessControlState, caller)) {
@@ -615,7 +628,6 @@ actor {
       Runtime.trap("Unauthorized: Only authenticated users can view rider profiles");
     };
     
-    // Verify caller owns this phone number or is admin
     switch (principalToPhone.get(caller)) {
       case (?callerPhone) {
         if (callerPhone != phone and not AccessControl.isAdmin(accessControlState, caller)) {
