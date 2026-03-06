@@ -5,8 +5,8 @@ import { Bike, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useActor } from "../hooks/useActor";
 import type { StoredUser } from "../types";
+import { loginCustomer, loginRider } from "../utils/rideStore";
 
 interface Props {
   onSuccess: (user: StoredUser) => void;
@@ -19,7 +19,6 @@ export default function LoginScreen({
   onRegister,
   onForgotPassword,
 }: Props) {
-  const { actor } = useActor();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,39 +28,38 @@ export default function LoginScreen({
       toast.error("Please enter phone and password");
       return;
     }
-    if (!actor) {
-      toast.error("Connection not ready. Please wait.");
-      return;
-    }
 
     setLoading(true);
     try {
-      const user = await actor.loginUser(phone.trim(), password.trim());
-      if (user) {
-        // Re-associate this Principal with the phone number so backend
-        // phone-ownership checks (createRide, acceptRide, etc.) pass correctly.
-        try {
-          await actor.saveCallerUserProfile({
-            name: user.name,
-            phone: user.phone,
-            role: user.role,
-          });
-        } catch (profileErr) {
-          // Non-fatal — proceed with login even if profile save fails
-          console.warn("Could not save caller profile:", profileErr);
-        }
-
+      // Try customer login first
+      const customer = loginCustomer(phone.trim(), password.trim());
+      if (customer) {
         const stored: StoredUser = {
-          id: user.id.toString(),
-          name: user.name,
-          phone: user.phone,
-          role: user.role as "customer" | "rider",
+          id: customer.phone,
+          name: customer.name,
+          phone: customer.phone,
+          role: "customer",
         };
-        toast.success(`Welcome back, ${user.name}!`);
+        toast.success(`Welcome back, ${customer.name}!`);
         onSuccess(stored);
-      } else {
-        toast.error("Invalid phone number or password");
+        return;
       }
+
+      // Try rider login
+      const rider = loginRider(phone.trim(), password.trim());
+      if (rider) {
+        const stored: StoredUser = {
+          id: rider.phone,
+          name: rider.name,
+          phone: rider.phone,
+          role: "rider",
+        };
+        toast.success(`Welcome back, ${rider.name}!`);
+        onSuccess(stored);
+        return;
+      }
+
+      toast.error("Invalid phone number or password");
     } catch (err) {
       console.error(err);
       toast.error("Login failed. Please try again.");

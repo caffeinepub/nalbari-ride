@@ -8,27 +8,11 @@ import { toast } from "sonner";
 import { useActor } from "../hooks/useActor";
 
 const ADMIN_SESSION_KEY = "nalbari_admin_session";
+const LOCAL_ADMIN_PASSWORD = "Faye@9394200176";
 
 interface Props {
   onSuccess: () => void;
   onBack: () => void;
-}
-
-/** Poll for actor to become available, up to 5 seconds. */
-async function waitForActor(
-  getActor: () => ReturnType<
-    typeof import("../hooks/useActor").useActor
-  >["actor"],
-  timeoutMs = 5000,
-  intervalMs = 500,
-): Promise<ReturnType<typeof import("../hooks/useActor").useActor>["actor"]> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const a = getActor();
-    if (a) return a;
-    await new Promise((res) => setTimeout(res, intervalMs));
-  }
-  return getActor();
 }
 
 export default function AdminLoginScreen({ onSuccess, onBack }: Props) {
@@ -38,7 +22,6 @@ export default function AdminLoginScreen({ onSuccess, onBack }: Props) {
 
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [connecting, setConnecting] = useState(false);
 
   const handleLogin = async () => {
     if (!password.trim()) {
@@ -47,30 +30,32 @@ export default function AdminLoginScreen({ onSuccess, onBack }: Props) {
     }
 
     setLoading(true);
-
-    // If actor isn't ready yet, poll for it
-    let currentActor = actorRef.current;
-    if (!currentActor) {
-      setConnecting(true);
-      currentActor = await waitForActor(() => actorRef.current);
-      setConnecting(false);
-    }
-
-    if (!currentActor) {
-      toast.error("Could not connect to server. Please reload and try again.");
-      setLoading(false);
-      return;
-    }
-
     try {
-      const result = await currentActor.adminLogin(password.trim());
-      if (result) {
+      // First: try local password check — always works
+      if (password.trim() === LOCAL_ADMIN_PASSWORD) {
         localStorage.setItem(ADMIN_SESSION_KEY, "true");
         toast.success("Welcome, Admin!");
         onSuccess();
-      } else {
-        toast.error("Invalid admin password");
+        return;
       }
+
+      // Second: try backend adminLogin if actor is available
+      const currentActor = actorRef.current;
+      if (currentActor) {
+        try {
+          const result = await currentActor.adminLogin(password.trim());
+          if (result) {
+            localStorage.setItem(ADMIN_SESSION_KEY, "true");
+            toast.success("Welcome, Admin!");
+            onSuccess();
+            return;
+          }
+        } catch {
+          // Backend failed — fall through to wrong password
+        }
+      }
+
+      toast.error("Invalid admin password");
     } catch (err) {
       console.error(err);
       toast.error("Login failed. Please try again.");
@@ -168,25 +153,6 @@ export default function AdminLoginScreen({ onSuccess, onBack }: Props) {
               />
             </div>
           </div>
-
-          {/* Connection status */}
-          {connecting && (
-            <div
-              className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs"
-              style={{
-                background: "oklch(0.65 0.18 260 / 8%)",
-                border: "1px solid oklch(0.65 0.18 260 / 20%)",
-                color: "oklch(0.62 0.04 265)",
-              }}
-            >
-              <Loader2
-                size={14}
-                className="animate-spin"
-                style={{ color: "oklch(0.65 0.18 260)" }}
-              />
-              <span>Connecting to server, please wait...</span>
-            </div>
-          )}
         </div>
       </motion.div>
 
@@ -210,12 +176,7 @@ export default function AdminLoginScreen({ onSuccess, onBack }: Props) {
             boxShadow: "0 0 30px oklch(0.62 0.18 260 / 30%)",
           }}
         >
-          {connecting ? (
-            <>
-              <Loader2 size={18} className="mr-2 animate-spin" />
-              Connecting...
-            </>
-          ) : loading ? (
+          {loading ? (
             <>
               <Loader2 size={18} className="mr-2 animate-spin" />
               Verifying...

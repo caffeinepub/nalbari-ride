@@ -5,19 +5,18 @@ import { ArrowLeft, Bike, KeyRound, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useActor } from "../hooks/useActor";
+import { resetPassword } from "../utils/rideStore";
 
 interface Props {
   onBack: () => void;
 }
 
 export default function ForgotPasswordScreen({ onBack }: Props) {
-  const { actor } = useActor();
   const [phone, setPhone] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleReset = async () => {
+  const handleReset = () => {
     if (!phone.trim() || phone.length < 10) {
       toast.error("Please enter a valid 10-digit phone number");
       return;
@@ -26,24 +25,16 @@ export default function ForgotPasswordScreen({ onBack }: Props) {
       toast.error("Password must be at least 4 characters");
       return;
     }
-    if (!actor) {
-      toast.error("Connection not ready. Please wait.");
-      return;
-    }
 
     setLoading(true);
     try {
-      const actorAny = actor as unknown as Record<string, unknown>;
-      const resetFn = actorAny.resetPassword;
-      if (typeof resetFn === "function") {
-        await (
-          resetFn as (phone: string, password: string) => Promise<unknown>
-        ).call(actor, phone.trim(), newPassword.trim());
+      const success = resetPassword(phone.trim(), newPassword.trim());
+      if (success) {
         toast.success("Password reset successfully! Please login.");
         onBack();
       } else {
         toast.error(
-          "Password reset is not available yet. Please contact support.",
+          "Phone number not found. Please check your number or register.",
         );
       }
     } catch (err) {

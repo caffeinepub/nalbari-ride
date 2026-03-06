@@ -1,14 +1,11 @@
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertCircle,
-  AlertTriangle,
   Bike,
   CheckCircle,
   FileImage,
@@ -20,45 +17,23 @@ import {
 import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { RiderDetails } from "../backend.d";
-import { useActor } from "../hooks/useActor";
-
-/** Show a note about additional docs that were stored in localStorage during registration */
-function LocalDocsNote({ phone }: { phone: string }) {
-  let hasLocalDocs = false;
-  try {
-    const raw = localStorage.getItem(`rider_docs_${phone}`);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Record<string, string>;
-      hasLocalDocs = Object.keys(parsed).length > 0;
-    }
-  } catch {
-    // ignore
-  }
-
-  if (!hasLocalDocs) {
-    return (
-      <p className="text-xs mt-2" style={{ color: "oklch(0.45 0.03 265)" }}>
-        Driving Licence / Bike Photo / Selfie: Not uploaded
-      </p>
-    );
-  }
-
-  return (
-    <p className="text-xs mt-2" style={{ color: "oklch(0.72 0.18 260)" }}>
-      ✓ Driving Licence / Bike Photo / Selfie stored on this device
-    </p>
-  );
-}
+import {
+  type StoredRider,
+  activateRider,
+  approveRider,
+  getAllRiders,
+  rejectRider,
+  suspendRider,
+} from "../utils/rideStore";
 
 function maskLicence(licence: string): string {
-  if (licence.length <= 4) return licence;
+  if (licence.length <= 4) return licence || "—";
   return `DL...${licence.slice(-4)}`;
 }
 
 function maskAadhaar(aadhaar: string): string {
   const digits = aadhaar.replace(/\D/g, "");
-  if (digits.length < 4) return aadhaar;
+  if (digits.length < 4) return aadhaar || "—";
   return `XXXX-XXXX-${digits.slice(-4)}`;
 }
 
@@ -145,111 +120,63 @@ function StatusBadge({
 }
 
 export default function AdminRiderManagementScreen() {
-  const { actor } = useActor();
-  const [riders, setRiders] = useState<RiderDetails[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [riders, setRiders] = useState<StoredRider[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [viewingAadhaar, setViewingAadhaar] = useState<string | null>(null);
 
-  const fetchRiders = useCallback(async () => {
-    if (!actor) return;
-    setLoading(true);
-    setFetchError(null);
-    try {
-      const data = await actor.getAllRiders();
-      setRiders(data);
-    } catch (err) {
-      console.error(err);
-      setFetchError(
-        "Admin data requires a special connection. Please reload the page and try again.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [actor]);
+  const fetchRiders = useCallback(() => {
+    setRiders(getAllRiders());
+  }, []);
 
   useEffect(() => {
     fetchRiders();
   }, [fetchRiders]);
 
-  const handleVerify = async (
-    phone: string,
-    status: "approved" | "rejected",
-  ) => {
-    if (!actor) return;
+  const handleVerify = (phone: string, status: "approved" | "rejected") => {
     setActionLoading(`verify-${phone}`);
     try {
-      await actor.verifyRider(phone, status);
+      if (status === "approved") {
+        approveRider(phone);
+      } else {
+        rejectRider(phone);
+      }
       toast.success(`Rider ${status === "approved" ? "approved" : "rejected"}`);
-      await fetchRiders();
+      fetchRiders();
     } catch (err) {
       console.error(err);
-      toast.error("Action requires admin session. Please reload.");
+      toast.error("Action failed.");
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleSuspend = async (phone: string) => {
-    if (!actor) return;
+  const handleSuspend = (phone: string) => {
     setActionLoading(`suspend-${phone}`);
     try {
-      await actor.suspendRider(phone);
+      suspendRider(phone);
       toast.success("Rider suspended");
-      await fetchRiders();
+      fetchRiders();
     } catch (err) {
       console.error(err);
-      toast.error("Action requires admin session. Please reload.");
+      toast.error("Action failed.");
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleActivate = async (phone: string) => {
-    if (!actor) return;
+  const handleActivate = (phone: string) => {
     setActionLoading(`activate-${phone}`);
     try {
-      await actor.activateRider(phone);
+      activateRider(phone);
       toast.success("Rider activated");
-      await fetchRiders();
+      fetchRiders();
     } catch (err) {
       console.error(err);
-      toast.error("Action requires admin session. Please reload.");
+      toast.error("Action failed.");
     } finally {
       setActionLoading(null);
     }
   };
-
-  if (loading) {
-    return (
-      <div data-ocid="admin_riders.loading_state" className="p-4 space-y-4">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="rounded-2xl p-5 space-y-3"
-            style={{
-              background: "oklch(0.17 0.015 265)",
-              border: "1px solid oklch(0.28 0.02 265)",
-            }}
-          >
-            <Skeleton
-              className="h-5 w-36"
-              style={{ background: "oklch(0.22 0.02 265)" }}
-            />
-            <Skeleton
-              className="h-4 w-28"
-              style={{ background: "oklch(0.22 0.02 265)" }}
-            />
-            <Skeleton
-              className="h-4 w-40"
-              style={{ background: "oklch(0.22 0.02 265)" }}
-            />
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   return (
     <div data-ocid="admin_riders.page" className="pb-6">
@@ -318,46 +245,7 @@ export default function AdminRiderManagementScreen() {
         </button>
       </div>
 
-      {fetchError ? (
-        <motion.div
-          data-ocid="admin_riders.error_state"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mx-4 rounded-2xl p-4 flex items-start gap-3"
-          style={{
-            background: "oklch(0.63 0.22 27 / 10%)",
-            border: "1px solid oklch(0.63 0.22 27 / 30%)",
-          }}
-        >
-          <AlertTriangle
-            size={18}
-            className="flex-shrink-0 mt-0.5"
-            style={{ color: "oklch(0.75 0.16 27)" }}
-          />
-          <div>
-            <p
-              className="text-sm font-semibold mb-1"
-              style={{ color: "oklch(0.75 0.16 27)" }}
-            >
-              Data unavailable
-            </p>
-            <p
-              className="text-xs leading-relaxed"
-              style={{ color: "oklch(0.55 0.03 265)" }}
-            >
-              {fetchError}
-            </p>
-            <button
-              type="button"
-              onClick={fetchRiders}
-              className="mt-2 text-xs font-semibold underline"
-              style={{ color: "oklch(0.72 0.18 260)" }}
-            >
-              Retry
-            </button>
-          </div>
-        </motion.div>
-      ) : riders.length === 0 ? (
+      {riders.length === 0 ? (
         <motion.div
           data-ocid="admin_riders.empty_state"
           initial={{ opacity: 0, y: 12 }}
@@ -533,9 +421,6 @@ export default function AdminRiderManagementScreen() {
                       </span>
                     )}
                   </div>
-
-                  {/* Other docs note */}
-                  <LocalDocsNote phone={rider.phone} />
                 </div>
 
                 {/* Action buttons */}
@@ -583,7 +468,7 @@ export default function AdminRiderManagementScreen() {
                   {rider.accountStatus === "active" ? (
                     <button
                       type="button"
-                      data-ocid={`admin_riders.suspend_button.${index + 1}`}
+                      data-ocid={`admin_riders.delete_button.${index + 1}`}
                       onClick={() => handleSuspend(rider.phone)}
                       disabled={isActionPending}
                       className="flex-1 h-9 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
@@ -603,7 +488,7 @@ export default function AdminRiderManagementScreen() {
                   ) : (
                     <button
                       type="button"
-                      data-ocid={`admin_riders.primary_button.${index + 1}`}
+                      data-ocid={`admin_riders.secondary_button.${index + 1}`}
                       onClick={() => handleActivate(rider.phone)}
                       disabled={isActionPending}
                       className="flex-1 h-9 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"

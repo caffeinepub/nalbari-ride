@@ -3,15 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { IndianRupee, Loader2, LogOut, MapPin, Navigation } from "lucide-react";
 import { motion } from "motion/react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { useActor } from "../hooks/useActor";
-import {
-  DEFAULT_FARE,
-  MAX_DISPLAY_FARE,
-  MIN_DISPLAY_FARE,
-  type StoredUser,
-} from "../types";
+import { MAX_DISPLAY_FARE, MIN_DISPLAY_FARE, type StoredUser } from "../types";
+import { createRide } from "../utils/rideStore";
 
 interface Props {
   user: StoredUser;
@@ -24,10 +19,6 @@ export default function CustomerHomeScreen({
   onLogout,
   onRideCreated,
 }: Props) {
-  const actorState = useActor();
-  const actorRef = useRef(actorState.actor);
-  actorRef.current = actorState.actor;
-
   const [pickup, setPickup] = useState("");
   const [drop, setDrop] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,42 +30,19 @@ export default function CustomerHomeScreen({
     }
 
     setLoading(true);
-
-    // Poll for actor if not yet ready
-    let currentActor = actorRef.current;
-    if (!currentActor) {
-      const deadline = Date.now() + 5000;
-      while (Date.now() < deadline) {
-        await new Promise((res) => setTimeout(res, 500));
-        currentActor = actorRef.current;
-        if (currentActor) break;
-      }
-    }
-
-    if (!currentActor) {
-      toast.error("Connection not ready. Please reload the page.");
-      setLoading(false);
-      return;
-    }
-
     try {
-      const ride = await currentActor.createRide(
+      const ride = createRide(
         user.phone,
         user.name,
         pickup.trim(),
         drop.trim(),
-        DEFAULT_FARE,
       );
       toast.success("Ride booked! Finding a rider...");
-      onRideCreated(ride.id);
+      // Pass a BigInt-compatible id (use 0n as placeholder — status screen polls by phone)
+      onRideCreated(BigInt(ride.id.replace("RIDE", "") || "0"));
     } catch (err) {
       console.error(err);
-      const errMsg = err instanceof Error ? err.message : String(err);
-      if (errMsg.toLowerCase().includes("customer not found")) {
-        toast.error("Session expired. Please log out and log in again.");
-      } else {
-        toast.error("Failed to book ride. Please try again.");
-      }
+      toast.error("Failed to book ride. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -99,6 +67,7 @@ export default function CustomerHomeScreen({
         </div>
         <button
           type="button"
+          data-ocid="customer_home.logout_button"
           onClick={onLogout}
           className="flex items-center gap-2 text-muted-foreground hover:text-destructive transition-colors text-sm font-medium"
         >

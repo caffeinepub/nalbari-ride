@@ -11,9 +11,13 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { Ride } from "../backend.d";
-import { useActor } from "../hooks/useActor";
 import type { StoredUser } from "../types";
+import {
+  type StoredRide,
+  completeRide,
+  getActiveRideForRider,
+  startRide,
+} from "../utils/rideStore";
 
 interface Props {
   user: StoredUser;
@@ -21,72 +25,59 @@ interface Props {
 }
 
 export default function RiderInProgressScreen({ user, onCompleted }: Props) {
-  const { actor } = useActor();
-  const [ride, setRide] = useState<Ride | null>(null);
+  const [ride, setRide] = useState<StoredRide | null>(null);
   const [endLoading, setEndLoading] = useState(false);
   const [startCode, setStartCode] = useState("");
   const [startLoading, setStartLoading] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const pollRide = useCallback(async () => {
-    if (!actor) return;
-    try {
-      const active = await actor.getActiveRideForRider(user.phone);
-      setRide(active);
-    } catch (err) {
-      console.error("Poll error:", err);
-    }
-  }, [actor, user.phone]);
+  const pollRide = useCallback(() => {
+    const active = getActiveRideForRider(user.phone);
+    setRide(active);
+  }, [user.phone]);
 
   useEffect(() => {
     pollRide();
-    const interval = setInterval(pollRide, 4000);
+    const interval = setInterval(pollRide, 3000);
     return () => clearInterval(interval);
   }, [pollRide]);
 
-  const handleStartRide = async () => {
-    if (!ride || !actor) return;
-    if (startCode.length !== 4) {
+  const handleStartRide = () => {
+    if (!ride) return;
+    if (startCode.replace(/\s/g, "").length !== 4) {
       toast.error("Please enter the full 4-digit code.");
       return;
     }
     setStartLoading(true);
     try {
-      await actor.startRideWithCode(ride.id, user.phone, startCode);
+      const result = startRide(ride.id, startCode.trim());
+      if ("error" in result) {
+        if (result.error === "Invalid ride start code") {
+          toast.error("Invalid code. Ask the customer again.");
+        } else {
+          toast.error(result.error);
+        }
+        setStartCode("");
+        return;
+      }
       toast.success("Ride started! Head to the destination.");
-      // Poll immediately to get the updated status
-      await pollRide();
+      pollRide();
     } catch (err) {
       console.error(err);
-      const message =
-        err instanceof Error
-          ? err.message
-          : typeof err === "string"
-            ? err
-            : "Invalid code. Ask the customer again.";
-      // Check for invalid code related messages
-      if (
-        message.toLowerCase().includes("invalid") ||
-        message.toLowerCase().includes("incorrect") ||
-        message.toLowerCase().includes("code")
-      ) {
-        toast.error("Invalid code. Ask the customer again.");
-      } else {
-        toast.error(message);
-      }
+      toast.error("Invalid code. Ask the customer again.");
       setStartCode("");
     } finally {
       setStartLoading(false);
     }
   };
 
-  const handleEndRide = async () => {
-    if (!ride || !actor) return;
+  const handleEndRide = () => {
+    if (!ride) return;
     setEndLoading(true);
     try {
-      await actor.completeRide(ride.id, user.phone);
+      completeRide(ride.id);
       toast.success("Ride completed! Great job!");
-      onCompleted(ride.fare);
+      onCompleted(BigInt(ride.fare));
     } catch (err) {
       console.error(err);
       toast.error("Failed to end ride. Please try again.");
@@ -115,12 +106,10 @@ export default function RiderInProgressScreen({ user, onCompleted }: Props) {
   ) => {
     if (e.key === "Backspace") {
       if (startCode[idx]) {
-        // Clear current digit
         const chars = startCode.padEnd(4, " ").split("");
         chars[idx] = " ";
         setStartCode(chars.join("").trimEnd());
       } else if (idx > 0) {
-        // Move back
         inputRefs.current[idx - 1]?.focus();
         const chars = startCode.padEnd(4, " ").split("");
         chars[idx - 1] = " ";
@@ -185,7 +174,7 @@ export default function RiderInProgressScreen({ user, onCompleted }: Props) {
                     <p className="text-muted-foreground text-sm">Passenger</p>
                   </div>
                   <div className="ml-auto font-bold text-brand text-lg">
-                    ₹{ride.fare.toString()}
+                    ₹{ride.fare}
                   </div>
                 </div>
                 <RideRoute pickup={ride.pickup} drop={ride.drop} />
@@ -226,12 +215,12 @@ export default function RiderInProgressScreen({ user, onCompleted }: Props) {
               {/* 4 individual digit boxes */}
               <div className="flex items-center gap-3">
                 {[0, 1, 2, 3].map((idx) => (
-                  <input
+                  <Input
                     key={idx}
                     ref={(el) => {
                       inputRefs.current[idx] = el;
                     }}
-                    data-ocid={"ride_in_progress.input" as string}
+                    data-ocid="ride_in_progress.input"
                     type="text"
                     inputMode="numeric"
                     maxLength={1}
@@ -346,7 +335,7 @@ export default function RiderInProgressScreen({ user, onCompleted }: Props) {
                   </div>
                   <div className="ml-auto">
                     <span className="font-bold text-brand text-xl">
-                      ₹{ride.fare.toString()}
+                      ₹{ride.fare}
                     </span>
                   </div>
                 </div>

@@ -12,11 +12,14 @@ import {
   XCircle,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { RiderDetails, RiderProfile } from "../backend.d";
-import { useActor } from "../hooks/useActor";
 import type { StoredUser } from "../types";
+import {
+  type StoredRider,
+  getRider,
+  updateRiderOnlineStatus,
+} from "../utils/rideStore";
 
 interface Props {
   user: StoredUser;
@@ -29,33 +32,22 @@ export default function RiderHomeScreen({
   onLogout,
   onViewRequests,
 }: Props) {
-  const { actor } = useActor();
-  const [profile, setProfile] = useState<RiderProfile | null>(null);
-  const [riderDetails, setRiderDetails] = useState<RiderDetails | null>(null);
-  const [isOnline, setIsOnline] = useState(false);
+  const [rider, setRider] = useState<StoredRider | null>(null);
+  const [isOnline, setIsOnline] = useState<boolean>(() => {
+    // Read initial state from rideStore
+    const r = getRider(user.phone);
+    return r?.isOnline ?? false;
+  });
   const [toggling, setToggling] = useState(false);
 
-  const fetchProfile = useCallback(async () => {
-    if (!actor) return;
-    try {
-      const [p, details] = await Promise.all([
-        actor.getRiderProfile(user.phone),
-        actor.getRiderDetails(user.phone),
-      ]);
-      setProfile(p);
-      setRiderDetails(details);
-      setIsOnline(p.status === "online");
-    } catch (err) {
-      console.error("Profile fetch error:", err);
-    }
-  }, [actor, user.phone]);
-
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+    const r = getRider(user.phone);
+    setRider(r);
+    if (r) setIsOnline(r.isOnline);
+  }, [user.phone]);
 
   // Show suspension notice if rider is suspended
-  if (riderDetails && riderDetails.accountStatus === "suspended") {
+  if (rider && rider.accountStatus === "suspended") {
     return (
       <div
         data-ocid="rider_home.suspended_state"
@@ -68,7 +60,6 @@ export default function RiderHomeScreen({
           transition={{ duration: 0.4 }}
           className="flex flex-col items-center text-center gap-5"
         >
-          {/* Red warning icon */}
           <div
             className="w-20 h-20 rounded-2xl flex items-center justify-center"
             style={{
@@ -131,7 +122,7 @@ export default function RiderHomeScreen({
   }
 
   // Show pending verification notice
-  if (riderDetails && riderDetails.verificationStatus === "pending") {
+  if (rider && rider.verificationStatus === "pending") {
     return (
       <div
         data-ocid="rider_home.pending_state"
@@ -144,7 +135,6 @@ export default function RiderHomeScreen({
           transition={{ duration: 0.4 }}
           className="flex flex-col items-center text-center gap-5 max-w-sm"
         >
-          {/* Amber clock icon */}
           <div
             className="w-20 h-20 rounded-2xl flex items-center justify-center"
             style={{
@@ -208,7 +198,7 @@ export default function RiderHomeScreen({
   }
 
   // Show rejection notice
-  if (riderDetails && riderDetails.verificationStatus === "rejected") {
+  if (rider && rider.verificationStatus === "rejected") {
     return (
       <div
         data-ocid="rider_home.rejected_state"
@@ -221,7 +211,6 @@ export default function RiderHomeScreen({
           transition={{ duration: 0.4 }}
           className="flex flex-col items-center text-center gap-5 max-w-sm"
         >
-          {/* Red X circle icon */}
           <div
             className="w-20 h-20 rounded-2xl flex items-center justify-center"
             style={{
@@ -284,25 +273,19 @@ export default function RiderHomeScreen({
     );
   }
 
-  const handleToggle = async (checked: boolean) => {
-    if (!actor) return;
-
-    // Block non-approved riders from going online
-    if (riderDetails?.verificationStatus !== "approved") {
+  const handleToggle = (checked: boolean) => {
+    if (rider && rider.verificationStatus !== "approved") {
       toast.error("Your account must be approved before going online");
       return;
     }
 
     setToggling(true);
     try {
-      // Ensure rider profile exists before updating status (prevents trap if not created yet)
-      await actor.getRiderProfile(user.phone);
-      await actor.setRiderStatus(user.phone, checked ? "online" : "offline");
+      updateRiderOnlineStatus(user.phone, checked);
       setIsOnline(checked);
+      // Refresh rider data
+      setRider(getRider(user.phone));
       toast.success(checked ? "You are now online!" : "You are now offline");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update status. Please try again.");
     } finally {
       setToggling(false);
     }
@@ -327,6 +310,7 @@ export default function RiderHomeScreen({
         </div>
         <button
           type="button"
+          data-ocid="rider_home.logout_button"
           onClick={onLogout}
           className="flex items-center gap-2 text-muted-foreground hover:text-destructive transition-colors text-sm font-medium"
         >
@@ -368,7 +352,11 @@ export default function RiderHomeScreen({
               : "Toggle to start accepting rides"}
           </p>
         </div>
+        <Label htmlFor="rider-online-switch" className="sr-only">
+          Go Online
+        </Label>
         <Switch
+          id="rider-online-switch"
           data-ocid="rider_home.toggle"
           checked={isOnline}
           onCheckedChange={handleToggle}
@@ -397,7 +385,7 @@ export default function RiderHomeScreen({
             <div className="flex items-baseline gap-1">
               <IndianRupee size={22} className="text-primary-foreground" />
               <span className="font-display text-4xl font-extrabold text-primary-foreground">
-                {profile?.totalEarnings?.toString() ?? "0"}
+                {rider?.totalEarnings ?? 0}
               </span>
             </div>
           </div>
@@ -406,7 +394,9 @@ export default function RiderHomeScreen({
           </div>
         </div>
         <p className="text-primary-foreground/60 text-xs mt-3">
-          Bike: AS-01-AB-1234
+          {rider?.bikeNumber
+            ? `Bike: ${rider.bikeNumber}`
+            : "Nalbari Ride Rider"}
         </p>
       </motion.div>
 

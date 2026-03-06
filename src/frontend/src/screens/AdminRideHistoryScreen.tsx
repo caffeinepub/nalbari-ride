@@ -1,6 +1,4 @@
-import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AlertTriangle,
   ArrowRight,
   Calendar,
   IndianRupee,
@@ -10,25 +8,28 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
-import type { Ride } from "../backend.d";
-import { useActor } from "../hooks/useActor";
+import { type StoredRide, getAllRides } from "../utils/rideStore";
 
-type FilterTab = "all" | "pending" | "accepted" | "completed" | "cancelled";
+type FilterTab =
+  | "all"
+  | "searching"
+  | "accepted"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
 
 const TABS: { label: string; value: FilterTab }[] = [
   { label: "All", value: "all" },
-  { label: "Pending", value: "pending" },
+  { label: "Pending", value: "searching" },
   { label: "Accepted", value: "accepted" },
+  { label: "In Progress", value: "in_progress" },
   { label: "Completed", value: "completed" },
   { label: "Cancelled", value: "cancelled" },
 ];
 
-function formatDate(nanoseconds: bigint): string {
-  const ms = Number(nanoseconds / 1_000_000n);
-  if (ms === 0) return "—";
-  const date = new Date(ms);
-  return date.toLocaleDateString("en-IN", {
+function formatDate(timestamp: number): string {
+  if (!timestamp) return "—";
+  return new Date(timestamp).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
@@ -52,11 +53,16 @@ function RideStatusBadge({ status }: { status: string }) {
       label = "Completed";
       break;
     case "accepted":
-    case "in_progress":
       bg = "oklch(0.65 0.18 260 / 15%)";
       color = "oklch(0.72 0.18 260)";
       border = "oklch(0.65 0.18 260 / 30%)";
       label = "Accepted";
+      break;
+    case "in_progress":
+      bg = "oklch(0.72 0.18 260 / 15%)";
+      color = "oklch(0.72 0.18 260)";
+      border = "oklch(0.72 0.18 260 / 30%)";
+      label = "In Progress";
       break;
     case "cancelled":
       bg = "oklch(0.63 0.22 27 / 15%)";
@@ -68,7 +74,7 @@ function RideStatusBadge({ status }: { status: string }) {
       bg = "oklch(0.82 0.14 80 / 15%)";
       color = "oklch(0.82 0.14 80)";
       border = "oklch(0.82 0.14 80 / 30%)";
-      label = "Pending";
+      label = "Searching";
   }
 
   return (
@@ -82,32 +88,12 @@ function RideStatusBadge({ status }: { status: string }) {
 }
 
 export default function AdminRideHistoryScreen() {
-  const { actor } = useActor();
-  const [rides, setRides] = useState<Ride[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [rides, setRides] = useState<StoredRide[]>([]);
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
 
-  const fetchRides = useCallback(async () => {
-    if (!actor) return;
-    setLoading(true);
-    setFetchError(null);
-    try {
-      const data = await actor.getAllRides();
-      // Sort newest first
-      const sorted = [...data].sort((a, b) =>
-        b.createdAt > a.createdAt ? 1 : -1,
-      );
-      setRides(sorted);
-    } catch (err) {
-      console.error(err);
-      setFetchError(
-        "Admin data requires a special connection. Please reload the page and try again.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [actor]);
+  const fetchRides = useCallback(() => {
+    setRides(getAllRides());
+  }, []);
 
   useEffect(() => {
     fetchRides();
@@ -115,38 +101,8 @@ export default function AdminRideHistoryScreen() {
 
   const filteredRides = rides.filter((r) => {
     if (activeTab === "all") return true;
-    return r.status.toLowerCase() === activeTab;
+    return r.status === activeTab;
   });
-
-  if (loading) {
-    return (
-      <div data-ocid="admin_rides.loading_state" className="p-4 space-y-4">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="rounded-2xl p-5 space-y-3"
-            style={{
-              background: "oklch(0.17 0.015 265)",
-              border: "1px solid oklch(0.28 0.02 265)",
-            }}
-          >
-            <Skeleton
-              className="h-5 w-32"
-              style={{ background: "oklch(0.22 0.02 265)" }}
-            />
-            <Skeleton
-              className="h-4 w-48"
-              style={{ background: "oklch(0.22 0.02 265)" }}
-            />
-            <Skeleton
-              className="h-4 w-24"
-              style={{ background: "oklch(0.22 0.02 265)" }}
-            />
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   return (
     <div data-ocid="admin_rides.page" className="pb-6">
@@ -210,46 +166,7 @@ export default function AdminRideHistoryScreen() {
       </div>
 
       {/* Ride list */}
-      {fetchError ? (
-        <motion.div
-          data-ocid="admin_rides.error_state"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mx-4 rounded-2xl p-4 flex items-start gap-3"
-          style={{
-            background: "oklch(0.63 0.22 27 / 10%)",
-            border: "1px solid oklch(0.63 0.22 27 / 30%)",
-          }}
-        >
-          <AlertTriangle
-            size={18}
-            className="flex-shrink-0 mt-0.5"
-            style={{ color: "oklch(0.75 0.16 27)" }}
-          />
-          <div>
-            <p
-              className="text-sm font-semibold mb-1"
-              style={{ color: "oklch(0.75 0.16 27)" }}
-            >
-              Data unavailable
-            </p>
-            <p
-              className="text-xs leading-relaxed"
-              style={{ color: "oklch(0.55 0.03 265)" }}
-            >
-              {fetchError}
-            </p>
-            <button
-              type="button"
-              onClick={fetchRides}
-              className="mt-2 text-xs font-semibold underline"
-              style={{ color: "oklch(0.72 0.18 260)" }}
-            >
-              Retry
-            </button>
-          </div>
-        </motion.div>
-      ) : filteredRides.length === 0 ? (
+      {filteredRides.length === 0 ? (
         <motion.div
           data-ocid="admin_rides.empty_state"
           initial={{ opacity: 0, y: 12 }}
@@ -274,14 +191,14 @@ export default function AdminRideHistoryScreen() {
           <p className="text-sm" style={{ color: "oklch(0.45 0.02 265)" }}>
             {activeTab === "all"
               ? "No rides have been booked yet"
-              : `No ${activeTab} rides`}
+              : `No ${activeTab.replace("_", " ")} rides`}
           </p>
         </motion.div>
       ) : (
         <div data-ocid="admin_rides.list" className="px-4 space-y-3">
           {filteredRides.map((ride, index) => (
             <motion.div
-              key={ride.id.toString()}
+              key={ride.id}
               data-ocid={`admin_rides.item.${index + 1}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -302,7 +219,7 @@ export default function AdminRideHistoryScreen() {
                       color: "oklch(0.72 0.18 260)",
                     }}
                   >
-                    #{Number(ride.id)}
+                    #{ride.id}
                   </span>
                   <RideStatusBadge status={ride.status} />
                 </div>
@@ -366,7 +283,7 @@ export default function AdminRideHistoryScreen() {
                       {ride.customerName}
                     </span>
                   </div>
-                  {ride.driverName && (
+                  {ride.riderName && (
                     <div className="flex items-center gap-1">
                       <span
                         className="text-xs"
@@ -378,7 +295,7 @@ export default function AdminRideHistoryScreen() {
                         className="text-xs"
                         style={{ color: "oklch(0.65 0.18 260)" }}
                       >
-                        {ride.driverName}
+                        {ride.riderName}
                       </span>
                     </div>
                   )}
@@ -388,16 +305,16 @@ export default function AdminRideHistoryScreen() {
                   style={{ color: "oklch(0.72 0.18 260)" }}
                 >
                   <IndianRupee size={13} />
-                  {ride.fare.toString()}
+                  {ride.fare}
                 </div>
               </div>
 
-              {ride.bikeNumber && (
+              {ride.riderBikeNumber && (
                 <p
                   className="text-xs mt-1.5"
                   style={{ color: "oklch(0.45 0.03 265)" }}
                 >
-                  Bike: {ride.bikeNumber}
+                  Bike: {ride.riderBikeNumber}
                 </p>
               )}
             </motion.div>

@@ -1,18 +1,15 @@
 import { Button } from "@/components/ui/button";
-import {
-  ArrowLeft,
-  IndianRupee,
-  Loader2,
-  MapPin,
-  Navigation,
-  User,
-} from "lucide-react";
+import { ArrowLeft, IndianRupee, Loader2, MapPin, User } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { Ride } from "../backend.d";
-import { useActor } from "../hooks/useActor";
 import type { StoredUser } from "../types";
+import {
+  type StoredRide,
+  acceptRide,
+  getPendingRides,
+  getRider,
+} from "../utils/rideStore";
 
 interface Props {
   user: StoredUser;
@@ -25,58 +22,51 @@ export default function RiderRequestsScreen({
   onBack,
   onAccepted,
 }: Props) {
-  const { actor } = useActor();
-  const [rides, setRides] = useState<Ride[]>([]);
-  const [acceptingId, setAcceptingId] = useState<bigint | null>(null);
+  const [rides, setRides] = useState<StoredRide[]>([]);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
-  const fetchRides = useCallback(async () => {
-    if (!actor) return;
-    try {
-      const pending = await actor.getPendingRides();
-      setRides(pending);
-    } catch (err) {
-      console.error("Fetch rides error:", err);
-    }
-  }, [actor]);
+  const fetchRides = useCallback(() => {
+    const pending = getPendingRides();
+    setRides(pending);
+  }, []);
 
   useEffect(() => {
     fetchRides();
-    const interval = setInterval(fetchRides, 5000);
+    const interval = setInterval(fetchRides, 4000);
     return () => clearInterval(interval);
   }, [fetchRides]);
 
-  const handleAccept = async (ride: Ride) => {
-    if (!actor) return;
+  const handleAccept = (ride: StoredRide) => {
     setAcceptingId(ride.id);
     try {
-      // Check rider details and verification status first
-      const riderDetails = await actor.getRiderDetails(user.phone);
-      if (!riderDetails || riderDetails.verificationStatus !== "approved") {
+      // Check rider status first
+      const rider = getRider(user.phone);
+      if (!rider) {
+        toast.error("Rider profile not found. Please re-login.");
+        return;
+      }
+      if (rider.verificationStatus !== "approved") {
         toast.error(
           "Your account must be approved by admin before accepting rides.",
         );
-        setAcceptingId(null);
+        return;
+      }
+      if (rider.accountStatus === "suspended") {
+        toast.error("Your account has been suspended.");
         return;
       }
 
-      await actor.acceptRide(
-        ride.id,
-        user.phone,
-        user.name,
-        riderDetails.bikeNumber,
-      );
+      const result = acceptRide(ride.id, user.phone);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+
       toast.success("Ride accepted! Head to pickup.");
       onAccepted();
     } catch (err) {
       console.error(err);
-      // Extract actual error message from backend
-      const message =
-        err instanceof Error
-          ? err.message
-          : typeof err === "string"
-            ? err
-            : "Could not accept this ride. Try another.";
-      toast.error(message);
+      toast.error("Could not accept this ride. Try another.");
     } finally {
       setAcceptingId(null);
     }
@@ -84,8 +74,6 @@ export default function RiderRequestsScreen({
 
   // Only show max 3 for display
   const displayRides = rides.slice(0, 3);
-
-  const ocidForItem = (idx: number) => `ride_requests.item.${idx + 1}` as const;
 
   return (
     <div
@@ -136,15 +124,15 @@ export default function RiderRequestsScreen({
                   No ride requests
                 </p>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Auto-refreshing every 5 seconds
+                  Auto-refreshing every 4 seconds
                 </p>
               </div>
             </motion.div>
           ) : (
             displayRides.map((ride, idx) => (
               <motion.div
-                key={ride.id.toString()}
-                data-ocid={ocidForItem(idx)}
+                key={ride.id}
+                data-ocid={`ride_requests.item.${idx + 1}`}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
@@ -165,7 +153,7 @@ export default function RiderRequestsScreen({
                   <div className="ml-auto flex items-center gap-1">
                     <IndianRupee size={14} className="text-brand" />
                     <span className="font-bold text-brand text-base">
-                      {ride.fare.toString()}
+                      {ride.fare}
                     </span>
                   </div>
                 </div>

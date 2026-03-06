@@ -14,6 +14,10 @@ import RiderInProgressScreen from "./screens/RiderInProgressScreen";
 import RiderRequestsScreen from "./screens/RiderRequestsScreen";
 import RoleSelectScreen from "./screens/RoleSelectScreen";
 import type { Screen, StoredUser } from "./types";
+import { migrateOldRiderData } from "./utils/rideStore";
+
+// Migrate any old rider registration data on startup
+migrateOldRiderData();
 
 const STORAGE_KEY = "nalbari_ride_user";
 const ADMIN_SESSION_KEY = "nalbari_admin_session";

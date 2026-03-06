@@ -1,5 +1,4 @@
 import {
-  AlertTriangle,
   Bike,
   History,
   IndianRupee,
@@ -11,9 +10,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
-import type { Ride, RiderDetails } from "../backend.d";
-import { useActor } from "../hooks/useActor";
+import { type AdminStats, getAdminStats } from "../utils/rideStore";
 import AdminRideHistoryScreen from "./AdminRideHistoryScreen";
 import AdminRiderManagementScreen from "./AdminRiderManagementScreen";
 import AdminSuspendActivateScreen from "./AdminSuspendActivateScreen";
@@ -76,8 +73,6 @@ function StatCard({
 }
 
 function AdminFareSettingsPanel() {
-  // Fare settings are currently read-only (backend fare config API not yet available)
-  // They reflect the fare formula: ₹10 base (3 km) + ₹5/km after
   const fareConfig = [
     { label: "Base Fare", value: "₹10", desc: "For first 3 km" },
     { label: "Base Distance", value: "3 km", desc: "Included in base fare" },
@@ -204,48 +199,27 @@ interface Props {
 }
 
 export default function AdminDashboardScreen({ onLogout }: Props) {
-  const { actor } = useActor();
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
-  const [riders, setRiders] = useState<RiderDetails[]>([]);
-  const [rides, setRides] = useState<Ride[]>([]);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [statsError, setStatsError] = useState<string | null>(null);
+  const [stats, setStats] = useState<AdminStats>({
+    totalRiders: 0,
+    activeRiders: 0,
+    suspendedRiders: 0,
+    pendingRiders: 0,
+    totalRides: 0,
+    completedRides: 0,
+    totalEarnings: 0,
+  });
 
-  const fetchStats = useCallback(async () => {
-    if (!actor) return;
-    setStatsLoading(true);
-    setStatsError(null);
-    try {
-      const [ridersData, ridesData] = await Promise.all([
-        actor.getAllRiders(),
-        actor.getAllRides(),
-      ]);
-      setRiders(ridersData);
-      setRides(ridesData);
-    } catch (err) {
-      console.error(err);
-      setStatsError(
-        "Admin data requires a special connection. Please reload the page and try again.",
-      );
-    } finally {
-      setStatsLoading(false);
-    }
-  }, [actor]);
+  const loadStats = useCallback(() => {
+    const s = getAdminStats();
+    setStats(s);
+  }, []);
 
   useEffect(() => {
     if (activeTab === "dashboard") {
-      fetchStats();
+      loadStats();
     }
-  }, [fetchStats, activeTab]);
-
-  const totalRiders = riders.length;
-  const activeRiders = riders.filter(
-    (r) => r.accountStatus === "active",
-  ).length;
-  const suspendedRiders = riders.filter(
-    (r) => r.accountStatus === "suspended",
-  ).length;
-  const totalRides = rides.length;
+  }, [loadStats, activeTab]);
 
   return (
     <div
@@ -334,90 +308,39 @@ export default function AdminDashboardScreen({ onLogout }: Props) {
             </motion.div>
 
             {/* Stats grid */}
-            {statsLoading ? (
-              <div className="grid grid-cols-2 gap-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className="rounded-2xl p-4 h-20 animate-pulse"
-                    style={{
-                      background: "oklch(0.17 0.015 265)",
-                      border: "1px solid oklch(0.28 0.02 265)",
-                    }}
-                  />
-                ))}
-              </div>
-            ) : statsError ? (
-              <motion.div
-                data-ocid="admin_dashboard.error_state"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl p-4 mb-6 flex items-start gap-3"
-                style={{
-                  background: "oklch(0.63 0.22 27 / 10%)",
-                  border: "1px solid oklch(0.63 0.22 27 / 30%)",
-                }}
-              >
-                <AlertTriangle
-                  size={18}
-                  className="flex-shrink-0 mt-0.5"
-                  style={{ color: "oklch(0.75 0.16 27)" }}
-                />
-                <div>
-                  <p
-                    className="text-sm font-semibold mb-1"
-                    style={{ color: "oklch(0.75 0.16 27)" }}
-                  >
-                    Stats unavailable
-                  </p>
-                  <p
-                    className="text-xs leading-relaxed"
-                    style={{ color: "oklch(0.55 0.03 265)" }}
-                  >
-                    {statsError}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={fetchStats}
-                    className="mt-2 text-xs font-semibold underline"
-                    style={{ color: "oklch(0.72 0.18 260)" }}
-                  >
-                    Retry
-                  </button>
-                </div>
-              </motion.div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <StatCard
-                  label="Total Riders"
-                  value={totalRiders}
-                  icon={Users}
-                  accent="oklch(0.72 0.18 260)"
-                  delay={0}
-                />
-                <StatCard
-                  label="Active Riders"
-                  value={activeRiders}
-                  icon={Bike}
-                  accent="oklch(0.78 0.17 142)"
-                  delay={0.05}
-                />
-                <StatCard
-                  label="Suspended"
-                  value={suspendedRiders}
-                  icon={Shield}
-                  accent="oklch(0.75 0.16 27)"
-                  delay={0.1}
-                />
-                <StatCard
-                  label="Total Rides"
-                  value={totalRides}
-                  icon={IndianRupee}
-                  accent="oklch(0.82 0.14 80)"
-                  delay={0.15}
-                />
-              </div>
-            )}
+            <div
+              data-ocid="admin_dashboard.success_state"
+              className="grid grid-cols-2 gap-3 mb-6"
+            >
+              <StatCard
+                label="Total Riders"
+                value={stats.totalRiders}
+                icon={Users}
+                accent="oklch(0.72 0.18 260)"
+                delay={0}
+              />
+              <StatCard
+                label="Active Riders"
+                value={stats.activeRiders}
+                icon={Bike}
+                accent="oklch(0.78 0.17 142)"
+                delay={0.05}
+              />
+              <StatCard
+                label="Suspended"
+                value={stats.suspendedRiders}
+                icon={Shield}
+                accent="oklch(0.75 0.16 27)"
+                delay={0.1}
+              />
+              <StatCard
+                label="Total Rides"
+                value={stats.totalRides}
+                icon={IndianRupee}
+                accent="oklch(0.82 0.14 80)"
+                delay={0.15}
+              />
+            </div>
 
             {/* Quick actions */}
             <motion.div
@@ -465,6 +388,7 @@ export default function AdminDashboardScreen({ onLogout }: Props) {
                   <button
                     key={tab}
                     type="button"
+                    data-ocid="admin_dashboard.tab"
                     onClick={() => setActiveTab(tab)}
                     className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-left transition-all"
                     style={{

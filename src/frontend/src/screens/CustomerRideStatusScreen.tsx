@@ -12,9 +12,12 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { Ride } from "../backend.d";
-import { useActor } from "../hooks/useActor";
 import type { StoredUser } from "../types";
+import {
+  type StoredRide,
+  cancelRide,
+  getActiveRideForCustomer,
+} from "../utils/rideStore";
 
 interface Props {
   user: StoredUser;
@@ -28,19 +31,13 @@ export default function CustomerRideStatusScreen({
   onBack,
   onBookAnother,
 }: Props) {
-  const { actor } = useActor();
-  const [ride, setRide] = useState<Ride | null>(null);
+  const [ride, setRide] = useState<StoredRide | null | "loading">("loading");
   const [cancelLoading, setCancelLoading] = useState(false);
 
-  const pollRide = useCallback(async () => {
-    if (!actor) return;
-    try {
-      const active = await actor.getActiveRideForCustomer(user.phone);
-      setRide(active);
-    } catch (err) {
-      console.error("Poll error:", err);
-    }
-  }, [actor, user.phone]);
+  const pollRide = useCallback(() => {
+    const active = getActiveRideForCustomer(user.phone);
+    setRide(active);
+  }, [user.phone]);
 
   useEffect(() => {
     pollRide();
@@ -48,11 +45,12 @@ export default function CustomerRideStatusScreen({
     return () => clearInterval(interval);
   }, [pollRide]);
 
-  const handleCancel = async () => {
-    if (!ride || !actor) return;
+  const handleCancel = () => {
+    const currentRide = ride !== "loading" ? ride : null;
+    if (!currentRide) return;
     setCancelLoading(true);
     try {
-      await actor.cancelRide(ride.id);
+      cancelRide(currentRide.id);
       toast.success("Ride cancelled");
       onBack();
     } catch (err) {
@@ -63,7 +61,7 @@ export default function CustomerRideStatusScreen({
     }
   };
 
-  const status = ride?.status ?? "loading";
+  const status = ride === "loading" ? "loading" : (ride?.status ?? "loading");
 
   return (
     <div
@@ -80,17 +78,24 @@ export default function CustomerRideStatusScreen({
           className="flex-1 flex flex-col items-center justify-center gap-6"
         >
           {status === "loading" && <StatusLoading />}
-          {status === "pending" && (
+          {status === "searching" && (
             <StatusPending
-              ride={ride}
+              ride={ride !== "loading" ? ride : null}
               onCancel={handleCancel}
               cancelLoading={cancelLoading}
             />
           )}
-          {status === "accepted" && <StatusAccepted ride={ride} />}
-          {status === "in_progress" && <StatusInProgress ride={ride} />}
+          {status === "accepted" && (
+            <StatusAccepted ride={ride !== "loading" ? ride : null} />
+          )}
+          {status === "in_progress" && (
+            <StatusInProgress ride={ride !== "loading" ? ride : null} />
+          )}
           {status === "completed" && (
-            <StatusCompleted ride={ride} onBookAnother={onBookAnother} />
+            <StatusCompleted
+              ride={ride !== "loading" ? ride : null}
+              onBookAnother={onBookAnother}
+            />
           )}
           {status === "cancelled" && <StatusCancelled onTryAgain={onBack} />}
         </motion.div>
@@ -108,9 +113,7 @@ function StatusLoading() {
       <div className="w-20 h-20 rounded-full bg-card border-2 border-primary/30 flex items-center justify-center">
         <Loader2 size={36} className="text-brand spin-loader" />
       </div>
-      <p className="text-muted-foreground text-center">
-        Connecting to server...
-      </p>
+      <p className="text-muted-foreground text-center">Finding your ride...</p>
     </div>
   );
 }
@@ -120,7 +123,7 @@ function StatusPending({
   onCancel,
   cancelLoading,
 }: {
-  ride: Ride | null;
+  ride: StoredRide | null;
   onCancel: () => void;
   cancelLoading: boolean;
 }) {
@@ -157,8 +160,8 @@ function StatusPending({
   );
 }
 
-function StatusAccepted({ ride }: { ride: Ride | null }) {
-  const rideStartCode = ride?.rideStartCode;
+function StatusAccepted({ ride }: { ride: StoredRide | null }) {
+  const rideStartCode = ride?.startCode;
 
   return (
     <div className="w-full flex flex-col items-center gap-6 slide-up">
@@ -232,10 +235,10 @@ function StatusAccepted({ ride }: { ride: Ride | null }) {
             </div>
             <div>
               <p className="font-bold text-foreground">
-                {ride.driverName ?? "Your Rider"}
+                {ride.riderName || "Your Rider"}
               </p>
               <p className="text-muted-foreground text-sm">
-                {ride.bikeNumber ?? "—"}
+                {ride.riderBikeNumber || "—"}
               </p>
             </div>
           </div>
@@ -243,14 +246,12 @@ function StatusAccepted({ ride }: { ride: Ride | null }) {
           <RideRouteInfo pickup={ride.pickup} drop={ride.drop} />
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground text-sm">Fare</span>
-            <span className="font-bold text-brand text-lg">
-              ₹{ride.fare.toString()}
-            </span>
+            <span className="font-bold text-brand text-lg">₹{ride.fare}</span>
           </div>
-          {ride.driverPhone && (
+          {ride.riderPhone && (
             <a
               data-ocid="ride_status.call_button"
-              href={`tel:${ride.driverPhone}`}
+              href={`tel:${ride.riderPhone}`}
               className="flex items-center justify-center gap-2 w-full h-13 rounded-2xl font-bold text-sm transition-all"
               style={{
                 background: "oklch(0.78 0.17 142)",
@@ -267,7 +268,7 @@ function StatusAccepted({ ride }: { ride: Ride | null }) {
   );
 }
 
-function StatusInProgress({ ride }: { ride: Ride | null }) {
+function StatusInProgress({ ride }: { ride: StoredRide | null }) {
   return (
     <div className="w-full flex flex-col items-center gap-6 slide-up">
       <div
@@ -302,24 +303,22 @@ function StatusInProgress({ ride }: { ride: Ride | null }) {
             </div>
             <div>
               <p className="font-bold text-foreground">
-                {ride.driverName ?? "Your Rider"}
+                {ride.riderName || "Your Rider"}
               </p>
               <p className="text-muted-foreground text-sm">
-                {ride.bikeNumber ?? "—"}
+                {ride.riderBikeNumber || "—"}
               </p>
             </div>
             <div className="ml-auto">
-              <span className="font-bold text-brand text-lg">
-                ₹{ride.fare.toString()}
-              </span>
+              <span className="font-bold text-brand text-lg">₹{ride.fare}</span>
             </div>
           </div>
           <div className="h-px bg-border" />
           <RideRouteInfo pickup={ride.pickup} drop={ride.drop} />
-          {ride.driverPhone && (
+          {ride.riderPhone && (
             <a
               data-ocid="ride_status.call_button"
-              href={`tel:${ride.driverPhone}`}
+              href={`tel:${ride.riderPhone}`}
               className="flex items-center justify-center gap-2 w-full h-13 rounded-2xl font-bold text-sm transition-all"
               style={{
                 background: "oklch(0.78 0.17 142)",
@@ -339,7 +338,7 @@ function StatusInProgress({ ride }: { ride: Ride | null }) {
 function StatusCompleted({
   ride,
   onBookAnother,
-}: { ride: Ride | null; onBookAnother: () => void }) {
+}: { ride: StoredRide | null; onBookAnother: () => void }) {
   return (
     <div className="w-full flex flex-col items-center gap-6 slide-up">
       <div
@@ -361,13 +360,14 @@ function StatusCompleted({
           <div className="flex items-center justify-center gap-2 mb-4">
             <IndianRupee size={24} className="text-brand" />
             <span className="font-display text-4xl font-extrabold text-brand">
-              {ride.fare.toString()}
+              {ride.fare}
             </span>
           </div>
           <RideRouteInfo pickup={ride.pickup} drop={ride.drop} />
         </div>
       )}
       <Button
+        data-ocid="ride_status.primary_button"
         onClick={onBookAnother}
         className="w-full h-14 rounded-2xl font-bold text-base bg-primary text-primary-foreground hover:bg-primary/90 orange-glow"
       >
@@ -390,6 +390,7 @@ function StatusCancelled({ onTryAgain }: { onTryAgain: () => void }) {
         <p className="text-muted-foreground text-sm">Your ride was cancelled</p>
       </div>
       <Button
+        data-ocid="ride_status.secondary_button"
         onClick={onTryAgain}
         className="w-full h-14 rounded-2xl font-bold text-base bg-primary text-primary-foreground hover:bg-primary/90 orange-glow"
       >
@@ -399,15 +400,13 @@ function StatusCancelled({ onTryAgain }: { onTryAgain: () => void }) {
   );
 }
 
-function RideInfoCard({ ride }: { ride: Ride }) {
+function RideInfoCard({ ride }: { ride: StoredRide }) {
   return (
     <div className="w-full rounded-3xl bg-card border border-border p-5 flex flex-col gap-4">
       <RideRouteInfo pickup={ride.pickup} drop={ride.drop} />
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm">Estimated fare</span>
-        <span className="font-bold text-brand text-lg">
-          ₹{ride.fare.toString()}
-        </span>
+        <span className="font-bold text-brand text-lg">₹{ride.fare}</span>
       </div>
     </div>
   );

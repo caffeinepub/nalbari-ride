@@ -14,7 +14,7 @@ import {
 import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { useActor } from "../hooks/useActor";
+import { registerCustomer, registerRider } from "../utils/rideStore";
 
 interface Props {
   role: "customer" | "rider";
@@ -172,7 +172,6 @@ function DocUploadField({
 }
 
 export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
-  const { actor } = useActor();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -212,79 +211,31 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
         return;
       }
     }
-    if (!actor) {
-      toast.error("Connection not ready. Please wait.");
-      return;
-    }
 
     setLoading(true);
     try {
-      const result = await actor.registerUser(
-        name.trim(),
-        phone.trim(),
-        password.trim(),
-        role,
-      );
-      if (
-        result.toLowerCase().includes("already") ||
-        result.toLowerCase().includes("exists")
-      ) {
-        toast.error("Phone number already registered. Please login.");
-        setLoading(false);
+      let result: { ok: true } | { error: string };
+
+      if (role === "customer") {
+        result = registerCustomer(name.trim(), phone.trim(), password.trim());
+      } else {
+        result = registerRider(
+          name.trim(),
+          phone.trim(),
+          password.trim(),
+          bikeNumber.trim(),
+          licenceNumber.trim(),
+          aadhaarNumber.trim(),
+          docs.aadhaar.base64,
+          docs.licence.base64,
+          docs.bike.base64,
+          docs.selfie.base64,
+        );
+      }
+
+      if ("error" in result) {
+        toast.error(result.error);
         return;
-      }
-
-      // CRITICAL: Register principal-phone mapping so backend checks work
-      try {
-        await actor.saveCallerUserProfile({
-          name: name.trim(),
-          phone: phone.trim(),
-          role,
-        });
-      } catch (profileErr) {
-        console.warn("Could not save caller profile:", profileErr);
-      }
-
-      // Also register rider details if role is rider
-      if (role === "rider") {
-        try {
-          await actor.registerRider(
-            phone.trim(),
-            name.trim(),
-            licenceNumber.trim(),
-            aadhaarNumber.trim(),
-            bikeNumber.trim(),
-          );
-        } catch (riderErr) {
-          console.error("Rider registration error:", riderErr);
-          // Continue anyway — user account created
-        }
-
-        // Upload Aadhaar image to backend
-        if (docs.aadhaar.base64) {
-          try {
-            await actor.uploadRiderAadhaarImage(
-              phone.trim(),
-              docs.aadhaar.base64,
-            );
-          } catch (imgErr) {
-            console.error("Aadhaar image upload error:", imgErr);
-          }
-        }
-
-        // Store other docs in localStorage (backend doesn't support them yet)
-        const localDocs: Record<string, string> = {};
-        if (docs.licence.base64) localDocs.licencePhoto = docs.licence.base64;
-        if (docs.bike.base64) localDocs.bikePhoto = docs.bike.base64;
-        if (docs.selfie.base64) localDocs.selfiePhoto = docs.selfie.base64;
-        if (Object.keys(localDocs).length > 0) {
-          try {
-            const key = `rider_docs_${phone.trim()}`;
-            localStorage.setItem(key, JSON.stringify(localDocs));
-          } catch {
-            // localStorage might be full — best effort
-          }
-        }
       }
 
       toast.success("Account created! Please login.");
@@ -362,7 +313,7 @@ export default function RegisterScreen({ role, onSuccess, onLogin }: Props) {
             </Label>
             <Input
               id="reg-name"
-              data-ocid="register.name_input"
+              data-ocid="register.input"
               placeholder="e.g. Rahul Das"
               value={name}
               onChange={(e) => setName(e.target.value)}
